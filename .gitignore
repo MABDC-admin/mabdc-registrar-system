@@ -27,4 +27,7 @@ Homestead.yaml
 Thumbs.db
 /scratch
 *.tar.gz
-
+*.patch
+/user_accounts.md
+/student_accounts.md
+/server_access.zip
