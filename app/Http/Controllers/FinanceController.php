@@ -176,27 +176,29 @@ class FinanceController extends Controller
             'apply_vat' => 'nullable|boolean',
         ]);
 
-        // Base Charge
-        $enrollment->financeLedgers()->create([
-            'type' => 'charge',
-            'description' => $validated['description'],
-            'amount' => $validated['amount'],
-            'transaction_date' => $validated['transaction_date'],
-        ]);
-
         $applyVat = $request->boolean('apply_vat', true);
         $taxAmount = 0;
 
-        if ($applyVat) {
-            // UAE VAT (5%)
-            $taxAmount = round($validated['amount'] * 0.05, 2);
+        DB::transaction(function () use ($enrollment, $validated, $applyVat, &$taxAmount) {
+            // Base Charge
             $enrollment->financeLedgers()->create([
-                'type' => 'tax',
-                'description' => 'UAE VAT (5%) on ' . $validated['description'],
-                'amount' => $taxAmount,
+                'type' => 'charge',
+                'description' => $validated['description'],
+                'amount' => $validated['amount'],
                 'transaction_date' => $validated['transaction_date'],
             ]);
-        }
+
+            if ($applyVat) {
+                // UAE VAT (5%)
+                $taxAmount = round($validated['amount'] * 0.05, 2);
+                $enrollment->financeLedgers()->create([
+                    'type' => 'tax',
+                    'description' => 'UAE VAT (5%) on ' . $validated['description'],
+                    'amount' => $taxAmount,
+                    'transaction_date' => $validated['transaction_date'],
+                ]);
+            }
+        });
 
         // Log Audit Event
         AuditEvent::query()->create([
@@ -234,47 +236,56 @@ class FinanceController extends Controller
             'reference_number' => 'nullable|string|max:255',
         ]);
 
-        // Guard: Cannot collect more than the outstanding balance
-        $currentBalance = (float) $enrollment->financeLedgers()->sum('amount');
+        $result = DB::transaction(function () use ($enrollment, $validated, $request) {
+            // Lock the enrollment so concurrent payments cannot both pass the balance guard.
+            Enrollment::query()->whereKey($enrollment->id)->lockForUpdate()->first();
 
-        if ($currentBalance <= 0) {
-            return redirect()->back()->withErrors([
-                'amount' => 'Cannot collect payment as this student has no outstanding balance (Current Balance: AED ' . number_format($currentBalance, 2) . ').'
+            // Guard: Cannot collect more than the outstanding balance
+            $currentBalance = (float) $enrollment->financeLedgers()->sum('amount');
+
+            if ($currentBalance <= 0) {
+                return ['error' => 'Cannot collect payment as this student has no outstanding balance (Current Balance: AED ' . number_format($currentBalance, 2) . ').'];
+            }
+
+            if ($validated['amount'] > ($currentBalance + 0.001)) {
+                return ['error' => 'Payment amount (AED ' . number_format($validated['amount'], 2) . ') cannot exceed the outstanding balance (AED ' . number_format($currentBalance, 2) . ').'];
+            }
+
+            // 1. Create the formal Payment record
+            $payment = \App\Models\Payment::create([
+                'enrollment_id' => $enrollment->id,
+                'amount' => $validated['amount'],
+                'payment_method' => $validated['method'],
+                'reference_number' => $request->input('reference_number'),
+                'transaction_date' => $validated['transaction_date'],
+                'processed_by' => auth()->id(),
+                'status' => 'completed',
             ]);
+
+            // 2. Create Receipt with manual receipt number
+            \App\Models\Receipt::create([
+                'payment_id' => $payment->id,
+                'receipt_number' => $validated['receipt_number'],
+                'issued_date' => $validated['transaction_date'],
+            ]);
+
+            // 3. Create Ledger Entry
+            $refString = $request->filled('reference_number') ? ' | Ref: ' . $request->input('reference_number') : '';
+            $enrollment->financeLedgers()->create([
+                'type' => 'payment',
+                'description' => 'Payment via ' . $validated['method'] . ' (Receipt: ' . $validated['receipt_number'] . $refString . ')',
+                'amount' => -$validated['amount'], // Negative for payments
+                'transaction_date' => $validated['transaction_date'],
+            ]);
+
+            return ['payment' => $payment];
+        });
+
+        if (isset($result['error'])) {
+            return redirect()->back()->withErrors(['amount' => $result['error']]);
         }
 
-        if ($validated['amount'] > ($currentBalance + 0.001)) {
-            return redirect()->back()->withErrors([
-                'amount' => 'Payment amount (AED ' . number_format($validated['amount'], 2) . ') cannot exceed the outstanding balance (AED ' . number_format($currentBalance, 2) . ').'
-            ]);
-        }
-
-        // 1. Create the formal Payment record
-        $payment = \App\Models\Payment::create([
-            'enrollment_id' => $enrollment->id,
-            'amount' => $validated['amount'],
-            'payment_method' => $validated['method'],
-            'reference_number' => $request->input('reference_number'),
-            'transaction_date' => $validated['transaction_date'],
-            'processed_by' => auth()->id(),
-            'status' => 'completed',
-        ]);
-
-        // 2. Create Receipt with manual receipt number
-        $receipt = \App\Models\Receipt::create([
-            'payment_id' => $payment->id,
-            'receipt_number' => $validated['receipt_number'],
-            'issued_date' => $validated['transaction_date'],
-        ]);
-
-        // 3. Create Ledger Entry
-        $refString = $request->filled('reference_number') ? ' | Ref: ' . $request->input('reference_number') : '';
-        $enrollment->financeLedgers()->create([
-            'type' => 'payment',
-            'description' => 'Payment via ' . $validated['method'] . ' (Receipt: ' . $validated['receipt_number'] . $refString . ')',
-            'amount' => -$validated['amount'], // Negative for payments
-            'transaction_date' => $validated['transaction_date'],
-        ]);
+        $payment = $result['payment'];
 
         // Log Audit Event
         AuditEvent::query()->create([
@@ -322,6 +333,13 @@ class FinanceController extends Controller
         } else {
             $amount = $request->amount;
             $description = 'Discount: ' . $request->type;
+        }
+
+        $currentBalance = (float) $enrollment->financeLedgers()->sum('amount');
+        if ($amount > $currentBalance + 0.001) {
+            return redirect()->back()->withErrors([
+                'amount' => 'Discount (AED ' . number_format($amount, 2) . ') cannot exceed the outstanding balance (AED ' . number_format(max($currentBalance, 0), 2) . ').',
+            ]);
         }
 
         $enrollment->financeLedgers()->create([
@@ -395,6 +413,15 @@ class FinanceController extends Controller
             'reason'           => 'required|string|max:255',
             'transaction_date' => 'required|date',
         ]);
+
+        $totalPaid = -(float) $enrollment->financeLedgers()->where('type', 'payment')->sum('amount');
+        $totalRefunded = -(float) $enrollment->financeLedgers()->where('type', 'refund')->sum('amount');
+        $refundable = $totalPaid - $totalRefunded;
+        if ($request->amount > $refundable + 0.001) {
+            return redirect()->back()->withErrors([
+                'amount' => 'Refund (AED ' . number_format($request->amount, 2) . ') cannot exceed the amount paid and not yet refunded (AED ' . number_format(max($refundable, 0), 2) . ').',
+            ]);
+        }
 
         $enrollment->financeLedgers()->create([
             'type'             => 'refund',

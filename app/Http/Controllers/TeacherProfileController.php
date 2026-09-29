@@ -49,7 +49,7 @@ class TeacherProfileController extends Controller
             $user = User::create([
                 'name' => $request->name,
                 'email' => $request->email,
-                'password' => Hash::make('MABDC-teacher2026'),
+                'password' => Hash::make(\Illuminate\Support\Str::random(40)),
                 'role' => 'teacher',
             ]);
             $userId = $user->id;
@@ -66,7 +66,7 @@ class TeacherProfileController extends Controller
             'status' => $request->status,
         ]);
 
-        return redirect()->route('teachers.index')->with('status', 'Teacher faculty added successfully.');
+        return redirect()->route('teachers.index')->with('status', 'Teacher faculty added successfully. The new account has a random password; use "Forgot password" on the login page to set one.');
     }
 
     public function update(Request $request, TeacherProfile $teacher): RedirectResponse

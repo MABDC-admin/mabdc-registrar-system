@@ -377,6 +377,12 @@ class LearnerAccountController extends Controller
             abort(403, 'Unauthorized ledger entry.');
         }
 
+        if ($ledger->type === 'payment') {
+            return redirect()->back()->withErrors([
+                'amount' => 'Payment entries cannot be edited. Issue a refund to correct a payment.',
+            ]);
+        }
+
         $request->validate([
             'transaction_date' => 'required|date',
             'description'      => 'required|string|max:255',
@@ -392,10 +398,25 @@ class LearnerAccountController extends Controller
             $amount = -$amount;
         }
 
+        $before = $ledger->only(['type', 'description', 'amount', 'transaction_date']);
+
         $ledger->update([
             'transaction_date' => $request->transaction_date,
             'description'      => $request->description,
             'amount'           => $amount,
+        ]);
+
+        \App\Models\AuditEvent::query()->create([
+            'actor_id' => auth()->id(),
+            'event_type' => 'ledger_updated',
+            'subject_type' => \App\Models\FinanceLedger::class,
+            'subject_id' => $ledger->id,
+            'before' => $before,
+            'after' => $ledger->only(['type', 'description', 'amount', 'transaction_date']),
+            'metadata' => [
+                'enrollment_id' => $enrollment->id,
+                'learner_name' => optional($enrollment->learner)->full_name,
+            ],
         ]);
 
         app(FinanceController::class)->updateFinancialStatus($enrollment);
@@ -409,7 +430,27 @@ class LearnerAccountController extends Controller
             abort(403, 'Unauthorized ledger entry.');
         }
 
+        if ($ledger->type === 'payment') {
+            return redirect()->back()->withErrors([
+                'amount' => 'Payment entries cannot be deleted. Issue a refund to reverse a payment.',
+            ]);
+        }
+
+        $before = $ledger->only(['type', 'description', 'amount', 'transaction_date']);
         $ledger->delete();
+
+        \App\Models\AuditEvent::query()->create([
+            'actor_id' => auth()->id(),
+            'event_type' => 'ledger_deleted',
+            'subject_type' => \App\Models\FinanceLedger::class,
+            'subject_id' => $ledger->id,
+            'before' => $before,
+            'after' => null,
+            'metadata' => [
+                'enrollment_id' => $enrollment->id,
+                'learner_name' => optional($enrollment->learner)->full_name,
+            ],
+        ]);
 
         app(FinanceController::class)->updateFinancialStatus($enrollment);
 

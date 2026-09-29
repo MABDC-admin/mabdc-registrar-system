@@ -88,7 +88,7 @@ class AdmissionController extends Controller
     public function updateStatus(Request $request, AdmissionApplication $application): RedirectResponse
     {
         $validated = $request->validate([
-            'status' => ['required', 'string'],
+            'status' => ['required', 'string', \Illuminate\Validation\Rule::enum(\App\Enums\ApplicationStatus::class)],
         ]);
 
         $application->update([

@@ -40,9 +40,12 @@ Route::get('/dashboard', DashboardController::class)
 
 Route::middleware(['auth', 'role:registrar,admin,finance'])->group(function () {
     Route::get('/households', [HouseholdController::class, 'index'])->name('households.index');
-    Route::post('/households', [HouseholdController::class, 'store'])->name('households.store');
-    Route::post('/households/{household}/link', [HouseholdController::class, 'linkLearner'])->name('households.link');
-    Route::delete('/households/{household}/unlink/{learner}', [HouseholdController::class, 'unlinkLearner'])->name('households.unlink');
+    Route::post('/households', [HouseholdController::class, 'store'])
+        ->middleware('module:student_management')->name('households.store');
+    Route::post('/households/{household}/link', [HouseholdController::class, 'linkLearner'])
+        ->middleware('module:student_management')->name('households.link');
+    Route::delete('/households/{household}/unlink/{learner}', [HouseholdController::class, 'unlinkLearner'])
+        ->middleware('module:student_management')->name('households.unlink');
 
     Route::get('/student-management', StudentManagementController::class)
         ->middleware('module:student_management')
@@ -55,6 +58,7 @@ Route::middleware(['auth', 'role:registrar,admin,finance'])->group(function () {
     Route::get('/promotions', [PromotionController::class, 'index'])
         ->name('promotions.index');
     Route::post('/promotions', [PromotionController::class, 'store'])
+        ->middleware('module:enrollment')
         ->name('promotions.store');
 
     Route::get('/academic-records', [AcademicRecordController::class, 'index'])
@@ -73,9 +77,12 @@ Route::middleware(['auth', 'role:registrar,admin,finance'])->group(function () {
         ->name('learners.documents.update');
     Route::get('/learners/{learner}', [LearnerController::class, 'show'])->name('learners.show');
     Route::get('/learners/{learner}/edit', [LearnerController::class, 'edit'])->name('learners.edit');
-    Route::patch('/learners/{learner}', [LearnerController::class, 'update'])->name('learners.update');
-    Route::patch('/learners/{learner}/disable', [LearnerController::class, 'disable'])->name('learners.disable');
-    Route::delete('/learners/{learner}', [LearnerController::class, 'destroy'])->name('learners.destroy');
+    Route::patch('/learners/{learner}', [LearnerController::class, 'update'])
+        ->middleware('module:student_management')->name('learners.update');
+    Route::patch('/learners/{learner}/disable', [LearnerController::class, 'disable'])
+        ->middleware('module:student_management')->name('learners.disable');
+    Route::delete('/learners/{learner}', [LearnerController::class, 'destroy'])
+        ->middleware('module:student_management')->name('learners.destroy');
 
     Route::get('/exports/learners', [ExportController::class, 'learners'])->name('exports.learners');
     Route::get('/exports/missing-documents', [ExportController::class, 'missingDocuments'])->name('exports.missing-documents');
@@ -90,22 +97,31 @@ Route::middleware(['auth', 'role:registrar,admin,finance'])->group(function () {
     // Registrar Module Routes
     Route::get('/admissions', [AdmissionController::class, 'index'])->name('admissions.index');
     Route::get('/admissions/create', [AdmissionController::class, 'create'])->name('admissions.create');
-    Route::post('/admissions', [AdmissionController::class, 'store'])->name('admissions.store');
-    Route::patch('/admissions/{application}/status', [AdmissionController::class, 'updateStatus'])->name('admissions.update-status');
-    Route::post('/admissions/{application}/enroll', [AdmissionController::class, 'enroll'])->name('admissions.enroll');
+    Route::post('/admissions', [AdmissionController::class, 'store'])
+        ->middleware('module:admission')->name('admissions.store');
+    Route::patch('/admissions/{application}/status', [AdmissionController::class, 'updateStatus'])
+        ->middleware('module:admission')->name('admissions.update-status');
+    Route::post('/admissions/{application}/enroll', [AdmissionController::class, 'enroll'])
+        ->middleware('module:admission')->name('admissions.enroll');
 
     Route::get('/classes', [SectionController::class, 'index'])->name('classes.index');
-    Route::post('/classes', [SectionController::class, 'store'])->name('classes.store');
-    Route::patch('/classes/{section}', [SectionController::class, 'update'])->name('classes.update');
+    Route::post('/classes', [SectionController::class, 'store'])
+        ->middleware('module:class_section')->name('classes.store');
+    Route::patch('/classes/{section}', [SectionController::class, 'update'])
+        ->middleware('module:class_section')->name('classes.update');
     Route::get('/classes/{section}', [SectionController::class, 'show'])->name('classes.show');
-    Route::post('/classes/{section}/assign', [SectionController::class, 'assign'])->name('classes.assign');
-    Route::post('/classes/{section}/unassign', [SectionController::class, 'unassign'])->name('classes.unassign');
+    Route::post('/classes/{section}/assign', [SectionController::class, 'assign'])
+        ->middleware('module:class_section')->name('classes.assign');
+    Route::post('/classes/{section}/unassign', [SectionController::class, 'unassign'])
+        ->middleware('module:class_section')->name('classes.unassign');
 
     Route::get('/attendance', [AttendanceController::class, 'index'])->name('attendance.index');
-    Route::post('/attendance', [AttendanceController::class, 'store'])->name('attendance.store');
+    Route::post('/attendance', [AttendanceController::class, 'store'])
+        ->middleware('module:attendance')->name('attendance.store');
 
     Route::get('/transfers', [TransferWithdrawalController::class, 'index'])->name('transfers.index');
-    Route::post('/transfers', [TransferWithdrawalController::class, 'store'])->name('transfers.store');
+    Route::post('/transfers', [TransferWithdrawalController::class, 'store'])
+        ->middleware('module:transfer_withdrawal')->name('transfers.store');
 
     Route::get('/certificates', [CertificateController::class, 'index'])->name('certificates.index');
     Route::get('/certificates/generate', [CertificateController::class, 'generate'])->name('certificates.generate');
