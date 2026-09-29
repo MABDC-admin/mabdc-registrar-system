@@ -1,3 +1,177 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer base {
+    html,
+    body {
+        min-height: 100vh;
+        background: #f5faf6;
+        color: #111827;
+    }
+
+    ::selection {
+        background: rgba(22, 163, 74, 0.2);
+        color: #064e3b;
+    }
+}
+
+@layer components {
+    .ops-screen {
+        min-height: 100vh;
+        background:
+            radial-gradient(circle at top right, rgba(34, 197, 94, 0.12), transparent 28rem),
+            linear-gradient(135deg, #f7fbf8 0%, #ffffff 42%, #eef8f0 100%);
+    }
+
+    .ops-shell {
+        min-height: 100vh;
+    }
+
+    .ops-sidebar {
+        background:
+            radial-gradient(circle at 20% 0%, rgba(34, 197, 94, 0.28), transparent 16rem),
+            linear-gradient(180deg, #064e3b 0%, #065f46 48%, #022c22 100%);
+        box-shadow: 18px 0 45px rgba(6, 78, 59, 0.22);
+    }
+
+    .ops-panel {
+        border: 1px solid rgba(15, 23, 42, 0.08);
+        background: #ffffff;
+        box-shadow: 0 16px 36px rgba(15, 23, 42, 0.08);
+    }
+
+    .ops-panel-soft {
+        border: 1px solid rgba(15, 23, 42, 0.08);
+        background: #ffffff;
+        box-shadow: 0 10px 28px rgba(15, 23, 42, 0.06);
+    }
+
+    .ops-kicker {
+        color: #15803d;
+        font-size: 0.72rem;
+        font-weight: 900;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+    }
+
+    .ops-title {
+        color: #111827;
+        font-weight: 900;
+        letter-spacing: -0.01em;
+    }
+
+    .ops-muted {
+        color: #6b7280;
+    }
+
+    .ops-control {
+        border-color: #d1d5db !important;
+        background-color: #ffffff !important;
+        color: #111827 !important;
+        box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+    }
+
+    .ops-control::placeholder {
+        color: #9ca3af;
+    }
+
+    .ops-control:focus {
+        border-color: #16a34a !important;
+        box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.16) !important;
+    }
+
+    .ops-button-primary {
+        border: 1px solid #15803d;
+        background: linear-gradient(135deg, #16a34a, #22c55e);
+        color: #ffffff;
+        box-shadow: 0 10px 20px rgba(22, 163, 74, 0.2);
+    }
+
+    .ops-button-primary:hover {
+        filter: brightness(1.03);
+    }
+
+    .ops-button-secondary {
+        border: 1px solid #d1d5db;
+        background: #ffffff;
+        color: #14532d;
+    }
+
+    .ops-button-secondary:hover {
+        border-color: #86efac;
+        background: #f0fdf4;
+    }
+
+    .ops-table {
+        border-collapse: separate;
+        border-spacing: 0;
+    }
+
+    .ops-table thead {
+        background: #f8fafc;
+    }
+
+    .ops-table tbody tr {
+        background: #ffffff;
+    }
+
+    .ops-table tbody tr:hover {
+        background: #f0fdf4;
+    }
+
+    .ops-badge-ok {
+        border: 1px solid rgba(22, 163, 74, 0.24);
+        background: #dcfce7;
+        color: #166534;
+    }
+
+    .ops-badge-warn {
+        border: 1px solid rgba(249, 115, 22, 0.24);
+        background: #fff7ed;
+        color: #c2410c;
+    }
+
+    .ops-screen [class*="bg-slate-950"],
+    .ops-screen [class*="bg-slate-900"] {
+        background-color: #ffffff !important;
+    }
+
+    .ops-screen [class*="border-slate-700"],
+    .ops-screen [class*="border-slate-800"],
+    .ops-screen [class*="border-teal-400"] {
+        border-color: #e5e7eb !important;
+    }
+
+    .ops-screen [class*="divide-slate-800"] > :not([hidden]) ~ :not([hidden]) {
+        border-color: #e5e7eb !important;
+    }
+
+    .ops-screen [class*="text-slate-50"],
+    .ops-screen [class*="text-slate-100"],
+    .ops-screen [class*="text-slate-200"],
+    .ops-screen [class*="text-slate-300"] {
+        color: #111827 !important;
+    }
+
+    .ops-screen [class*="text-teal"] {
+        color: #15803d !important;
+    }
+
+    .ops-screen [class*="bg-teal"] {
+        background-color: #dcfce7 !important;
+    }
+
+    .ops-sidebar [class*="text-slate-50"],
+    .ops-sidebar [class*="text-slate-100"],
+    .ops-sidebar [class*="text-slate-200"],
+    .ops-sidebar [class*="text-slate-300"],
+    .ops-sidebar [class*="text-green-50"],
+    .ops-sidebar [class*="text-green-100"] {
+        color: #ffffff !important;
+    }
+
+    .ops-sidebar [class*="bg-white"] {
+        background-color: rgba(255, 255, 255, 0.12) !important;
+    }
+}

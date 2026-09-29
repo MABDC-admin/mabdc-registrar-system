@@ -125,10 +125,13 @@ class ExportController extends Controller
                 $normalizedSearch = preg_replace('/[^A-Z0-9]+/', ' ', strtoupper($search));
 
                 $query->where(function (Builder $query) use ($search, $normalizedSearch) {
-                    $query
-                        ->where('lrn', 'like', "%{$search}%")
-                        ->orWhere('full_name', 'like', "%{$search}%")
-                        ->orWhere('normalized_name', 'like', "%{$normalizedSearch}%");
+                    if (is_numeric(str_replace([' ', '-'], '', $search))) {
+                        $query->where('lrn', 'like', "{$search}%");
+                    } else {
+                        $query->where('normalized_name', 'like', "{$normalizedSearch}%")
+                            ->orWhere('full_name', 'like', "%{$search}%")
+                            ->orWhere('normalized_name', 'like', "%{$normalizedSearch}%");
+                    }
                 });
             })
             ->when($level !== '', function (Builder $query) use ($activeYear, $level) {

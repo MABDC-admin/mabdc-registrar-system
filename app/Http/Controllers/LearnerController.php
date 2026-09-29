@@ -5,9 +5,11 @@ namespace App\Http\Controllers;
 use App\Enums\DocumentStatus;
 use App\Enums\DocumentType;
 use App\Models\AcademicYear;
+use App\Models\AuditEvent;
 use App\Models\Enrollment;
 use App\Models\Learner;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -82,6 +84,98 @@ class LearnerController extends Controller
             'activeYear' => $activeYear,
             'learner' => $this->learnerPayload($learner, true),
         ]);
+    }
+
+    public function edit(Learner $learner): Response
+    {
+        $activeYear = AcademicYear::query()
+            ->where('is_active', true)
+            ->first(['id', 'name']);
+
+        $learner->load(['enrollments' => function ($query) use ($activeYear) {
+            $query
+                ->when($activeYear, fn ($query) => $query->where('academic_year_id', $activeYear->id))
+                ->with(['academicYear:id,name', 'documentRequirements']);
+        }]);
+
+        return Inertia::render('Learners/Edit', [
+            'activeYear' => $activeYear,
+            'learner' => $this->learnerPayload($learner, true),
+        ]);
+    }
+
+    public function update(Request $request, Learner $learner): RedirectResponse
+    {
+        $validated = $request->validate([
+            'lrn' => 'required|string|max:255',
+            'full_name' => 'required|string|max:255',
+            'birth_date' => 'nullable|date',
+            'gender' => 'nullable|string',
+            'mother_maiden_name' => 'nullable|string|max:255',
+            'mother_contact_number' => 'nullable|string|max:255',
+            'father_name' => 'nullable|string|max:255',
+            'father_contact_number' => 'nullable|string|max:255',
+            'philippine_address' => 'nullable|string|max:500',
+            'uae_address' => 'nullable|string|max:500',
+            'previous_school' => 'nullable|string|max:255',
+        ]);
+
+        $normalizedName = preg_replace('/[^A-Z0-9]+/', ' ', strtoupper($validated['full_name']));
+        $validated['normalized_name'] = trim((string) $normalizedName);
+
+        $before = $learner->toArray();
+        $learner->update($validated);
+
+        AuditEvent::query()->create([
+            'actor_id' => auth()->id(),
+            'event_type' => 'learner.updated',
+            'subject_type' => Learner::class,
+            'subject_id' => $learner->id,
+            'before' => $before,
+            'after' => $learner->refresh()->toArray(),
+        ]);
+
+        return redirect()->route('learners.show', $learner->id);
+    }
+
+    public function disable(Learner $learner): RedirectResponse
+    {
+        $activeYear = AcademicYear::query()->where('is_active', true)->first();
+        $enrollment = $learner->enrollments()
+            ->when($activeYear, fn ($q) => $q->where('academic_year_id', $activeYear->id))
+            ->firstOrFail();
+
+        $metadata = $enrollment->metadata ?? [];
+        $metadata['disabled_by'] = auth()->id();
+
+        $enrollment->update([
+            'status' => 'disabled',
+            'metadata' => $metadata,
+        ]);
+
+        AuditEvent::query()->create([
+            'actor_id' => auth()->id(),
+            'event_type' => 'learner.disabled',
+            'subject_type' => Enrollment::class,
+            'subject_id' => $enrollment->id,
+        ]);
+
+        return redirect()->route('learners.index');
+    }
+
+    public function destroy(Learner $learner): RedirectResponse
+    {
+        $learnerId = $learner->id;
+        $learner->delete();
+
+        AuditEvent::query()->create([
+            'actor_id' => auth()->id(),
+            'event_type' => 'learner.deleted',
+            'subject_type' => Learner::class,
+            'subject_id' => $learnerId,
+        ]);
+
+        return redirect()->route('learners.index');
     }
 
     /**

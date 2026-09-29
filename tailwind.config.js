@@ -13,8 +13,12 @@ export default {
     theme: {
         extend: {
             fontFamily: {
-                sans: ['Figtree', ...defaultTheme.fontFamily.sans],
+                sans: ['"Plus Jakarta Sans"', ...defaultTheme.fontFamily.sans],
             },
+            boxShadow: {
+                'premium': '0 10px 40px -10px rgba(0,0,0,0.08)',
+                'glow': '0 0 20px rgba(16, 185, 129, 0.4)',
+            }
         },
     },
 

@@ -11,5 +11,14 @@ export type PageProps<
 > = T & {
     auth: {
         user: User;
+        modulePermissions: Record<string, boolean>;
     };
+    pendingRegistrationCount?: number;
+    recentPendingRegistrations?: Array<{
+        id: number;
+        full_name: string;
+        level_applied_for: string;
+        created_at: string;
+    }>;
+    recentNotifications?: any[];
 };

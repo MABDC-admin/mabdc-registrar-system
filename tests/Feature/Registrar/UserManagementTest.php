@@ -43,6 +43,8 @@ class UserManagementTest extends TestCase
                 ->where('roles.0', 'user')
                 ->where('roles.1', 'registrar')
                 ->where('roles.2', 'admin')
+                ->where('modules.0.key', 'dashboard')
+                ->where('modulePermissions.registrar.reports', true)
             );
 
         $this->actingAs($admin)
@@ -50,6 +52,35 @@ class UserManagementTest extends TestCase
             ->assertRedirect('/users');
 
         $this->assertSame('registrar', $user->refresh()->role);
+    }
+
+    public function test_admin_can_enable_and_disable_modules_for_each_role(): void
+    {
+        $admin = User::factory()->create(['role' => 'admin']);
+        $registrar = User::factory()->create(['role' => 'registrar']);
+
+        $this->actingAs($admin)
+            ->patch('/roles/registrar/modules/reports', ['enabled' => false])
+            ->assertRedirect('/users');
+
+        $this->actingAs($registrar)
+            ->get('/reports')
+            ->assertForbidden();
+
+        $this->actingAs($admin)
+            ->get('/users')
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('modulePermissions.registrar.reports', false)
+            );
+
+        $this->actingAs($admin)
+            ->patch('/roles/registrar/modules/reports', ['enabled' => true])
+            ->assertRedirect('/users');
+
+        $this->actingAs($registrar)
+            ->get('/reports')
+            ->assertOk();
     }
 
     public function test_only_admin_can_manage_user_roles(): void

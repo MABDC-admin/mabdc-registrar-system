@@ -9,13 +9,15 @@ use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Spatie\Permission\Traits\HasRoles;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 #[Fillable(['name', 'email', 'password', 'role'])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
-    use HasFactory, Notifiable;
+    use HasFactory, Notifiable, HasRoles;
 
     /**
      * Get the attributes that should be cast.
@@ -30,8 +32,21 @@ class User extends Authenticatable
         ];
     }
 
-    public function hasAnyRole(array $roles): bool
+    public function hasAnyRole(mixed ...$roles): bool
     {
-        return in_array($this->role, $roles, true);
+        $flattened = [];
+        foreach ($roles as $r) {
+            if (is_array($r)) {
+                $flattened = array_merge($flattened, $r);
+            } elseif (is_string($r)) {
+                $flattened[] = $r;
+            }
+        }
+        return in_array($this->role, $flattened, true);
+    }
+
+    public function teacherProfile(): HasOne
+    {
+        return $this->hasOne(TeacherProfile::class);
     }
 }

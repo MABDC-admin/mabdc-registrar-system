@@ -31,7 +31,7 @@ return [
     |
     | Supported: "smtp", "sendmail", "mailgun", "ses", "ses-v2",
     |            "postmark", "resend", "log", "array",
-    |            "failover", "roundrobin"
+    |            "failover", "roundrobin", "mabdc-api"
     |
     */
 
@@ -49,16 +49,20 @@ return [
             'local_domain' => env('MAIL_EHLO_DOMAIN', parse_url((string) env('APP_URL', 'http://localhost'), PHP_URL_HOST)),
         ],
 
+        'mabdc-api' => [
+            'transport' => 'mabdc-api',
+            'api_key' => env('MABDC_MAIL_API_KEY'),
+            'api_url' => env('MABDC_MAIL_API_URL', 'https://api-mail.mabdc.com/v1/emails'),
+            'from_address' => env('MAIL_FROM_ADDRESS', 'noreply@mabdc.org'),
+            'from_name' => env('MAIL_FROM_NAME', 'MABDC School'),
+        ],
+
         'ses' => [
             'transport' => 'ses',
         ],
 
         'postmark' => [
             'transport' => 'postmark',
-            // 'message_stream_id' => env('POSTMARK_MESSAGE_STREAM_ID'),
-            // 'client' => [
-            //     'timeout' => 5,
-            // ],
         ],
 
         'resend' => [
@@ -111,8 +115,8 @@ return [
     */
 
     'from' => [
-        'address' => env('MAIL_FROM_ADDRESS', 'hello@example.com'),
-        'name' => env('MAIL_FROM_NAME', env('APP_NAME', 'Laravel')),
+        'address' => env('MAIL_FROM_ADDRESS', 'noreply@mabdc.org'),
+        'name' => env('MAIL_FROM_NAME', env('APP_NAME', 'MABDC Registrar')),
     ],
 
 ];

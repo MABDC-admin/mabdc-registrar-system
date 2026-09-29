@@ -18,13 +18,18 @@ class RegistrarAccessControlTest extends TestCase
 
     public function test_registrar_routes_require_registrar_or_admin_role(): void
     {
-        $this->seedRecord();
+        [$learner] = $this->seedRecord();
         $plainUser = User::factory()->create(['role' => 'user']);
         $registrar = User::factory()->create(['role' => 'registrar']);
         $admin = User::factory()->create(['role' => 'admin']);
 
         foreach ([
             '/dashboard',
+            '/student-management',
+            '/enrollments',
+            '/academic-records',
+            "/academic-records/{$learner->id}",
+            '/reports',
             '/learners',
             '/imports',
             '/exports/learners',

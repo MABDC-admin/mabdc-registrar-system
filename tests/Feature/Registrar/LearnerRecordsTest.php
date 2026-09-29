@@ -99,6 +99,131 @@ class LearnerRecordsTest extends TestCase
             );
     }
 
+    public function test_registrar_can_open_learner_edit_form(): void
+    {
+        $user = User::factory()->create();
+        $year = AcademicYear::query()->create([
+            'name' => '2026-2027',
+            'is_active' => true,
+        ]);
+        $learner = $this->createLearnerWithEnrollment($year, [
+            'lrn' => '109806170058',
+            'full_name' => 'STA. CRUZ, DAHLIA THERESE S.',
+            'normalized_name' => 'STA. CRUZ DAHLIA THERESE S',
+            'birth_date' => '2020-11-15',
+            'gender' => 'F',
+        ], 'L1');
+
+        $this->actingAs($user)
+            ->get("/learners/{$learner->id}/edit")
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('Learners/Edit')
+                ->where('learner.id', $learner->id)
+                ->where('learner.full_name', 'STA. CRUZ, DAHLIA THERESE S.')
+                ->where('learner.current_enrollment.level', 'L1')
+            );
+    }
+
+    public function test_registrar_can_update_learner_profile_with_audit_event(): void
+    {
+        $user = User::factory()->create();
+        $year = AcademicYear::query()->create([
+            'name' => '2026-2027',
+            'is_active' => true,
+        ]);
+        $learner = $this->createLearnerWithEnrollment($year, [
+            'lrn' => '109806170058',
+            'full_name' => 'STA. CRUZ, DAHLIA THERESE S.',
+            'normalized_name' => 'STA. CRUZ DAHLIA THERESE S',
+            'gender' => 'F',
+        ], 'L1');
+
+        $this->actingAs($user)
+            ->patch("/learners/{$learner->id}", [
+                'lrn' => '109806170099',
+                'full_name' => 'STA. CRUZ, DAHLIA T.',
+                'birth_date' => '2020-11-16',
+                'gender' => 'Female',
+                'mother_maiden_name' => 'Geralyn Soriano',
+                'mother_contact_number' => '052 564 1750',
+                'father_name' => 'Julius Sta. Cruz',
+                'father_contact_number' => '056 205 1322',
+                'philippine_address' => 'Pangasinan',
+                'uae_address' => 'Abu Dhabi',
+                'previous_school' => 'Previous Academy',
+            ])
+            ->assertRedirect("/learners/{$learner->id}");
+
+        $learner->refresh();
+        $this->assertSame('109806170099', $learner->lrn);
+        $this->assertSame('STA. CRUZ, DAHLIA T.', $learner->full_name);
+        $this->assertSame('STA CRUZ DAHLIA T', $learner->normalized_name);
+        $this->assertSame('2020-11-16', $learner->birth_date?->toDateString());
+        $this->assertDatabaseHas('audit_events', [
+            'actor_id' => $user->id,
+            'event_type' => 'learner.updated',
+            'subject_type' => Learner::class,
+            'subject_id' => $learner->id,
+        ]);
+    }
+
+    public function test_registrar_can_disable_current_learner_enrollment_with_audit_event(): void
+    {
+        $user = User::factory()->create();
+        $year = AcademicYear::query()->create([
+            'name' => '2026-2027',
+            'is_active' => true,
+        ]);
+        $learner = $this->createLearnerWithEnrollment($year, [
+            'lrn' => '109806170058',
+            'full_name' => 'STA. CRUZ, DAHLIA THERESE S.',
+            'normalized_name' => 'STA. CRUZ DAHLIA THERESE S',
+        ], 'L1');
+
+        $this->actingAs($user)
+            ->patch("/learners/{$learner->id}/disable")
+            ->assertRedirect('/learners');
+
+        $enrollment = $learner->enrollments()->firstOrFail();
+        $this->assertSame('disabled', $enrollment->status);
+        $this->assertSame($user->id, $enrollment->metadata['disabled_by']);
+        $this->assertDatabaseHas('audit_events', [
+            'actor_id' => $user->id,
+            'event_type' => 'learner.disabled',
+            'subject_type' => Enrollment::class,
+            'subject_id' => $enrollment->id,
+        ]);
+    }
+
+    public function test_registrar_can_delete_learner_record_with_audit_event(): void
+    {
+        $user = User::factory()->create();
+        $year = AcademicYear::query()->create([
+            'name' => '2026-2027',
+            'is_active' => true,
+        ]);
+        $learner = $this->createLearnerWithEnrollment($year, [
+            'lrn' => '109806170058',
+            'full_name' => 'STA. CRUZ, DAHLIA THERESE S.',
+            'normalized_name' => 'STA. CRUZ DAHLIA THERESE S',
+        ], 'L1');
+
+        $this->actingAs($user)
+            ->delete("/learners/{$learner->id}")
+            ->assertRedirect('/learners');
+
+        $this->assertDatabaseMissing('learners', [
+            'id' => $learner->id,
+        ]);
+        $this->assertDatabaseHas('audit_events', [
+            'actor_id' => $user->id,
+            'event_type' => 'learner.deleted',
+            'subject_type' => Learner::class,
+            'subject_id' => $learner->id,
+        ]);
+    }
+
     public function test_registrar_can_update_document_requirement_with_audit_event(): void
     {
         $user = User::factory()->create();

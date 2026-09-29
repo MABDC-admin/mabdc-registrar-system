@@ -26,7 +26,10 @@ class DashboardReportTest extends TestCase
         ]);
         $this->createLearnerWithDocuments($year, 'L1', DocumentStatus::Missing);
         $this->createLearnerWithDocuments($year, 'L1', DocumentStatus::Ok);
+        $this->createLearnerWithDocuments($year, 'L2', DocumentStatus::Ok);
         $this->createLearnerWithDocuments($year, 'G1', DocumentStatus::PendingReview);
+        $this->createLearnerWithDocuments($year, 'G12', DocumentStatus::Ok);
+        $this->createLearnerWithDocuments($year, 'G2', DocumentStatus::Ok);
         ImportBatch::query()->create([
             'academic_year_id' => $year->id,
             'user_id' => $user->id,
@@ -48,16 +51,19 @@ class DashboardReportTest extends TestCase
             ->assertInertia(fn ($page) => $page
                 ->component('Dashboard')
                 ->where('activeYear.name', '2026-2027')
-                ->where('totals.learners', 3)
-                ->where('totals.enrollments', 3)
-                ->where('totals.document_requirements', 15)
-                ->where('documentTotals.ok', 13)
+                ->where('totals.learners', 6)
+                ->where('totals.enrollments', 6)
+                ->where('totals.document_requirements', 30)
+                ->where('documentTotals.ok', 28)
                 ->where('documentTotals.missing', 1)
                 ->where('documentTotals.pending_review', 1)
-                ->where('byLevel.0.level', 'G1')
-                ->where('byLevel.0.learners', 1)
-                ->where('byLevel.1.level', 'L1')
-                ->where('byLevel.1.learners', 2)
+                ->where('byLevel.0.level', 'L1')
+                ->where('byLevel.0.learners', 2)
+                ->where('byLevel.1.level', 'L2')
+                ->where('byLevel.2.level', 'G1')
+                ->where('byLevel.3.level', 'G2')
+                ->where('byLevel.4.level', 'G12')
+                ->where('byLevel.1.learners', 1)
                 ->where('latestImport.imported_rows', 396)
                 ->has('duplicateLrnWarnings', 1)
                 ->where('duplicateLrnWarnings.0.row', 60)

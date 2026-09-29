@@ -22,6 +22,10 @@ Route::middleware('guest')->group(function () {
 
     Route::post('login', [AuthenticatedSessionController::class, 'store']);
 
+    Route::post('check-email', [AuthenticatedSessionController::class, 'checkEmail'])
+        ->middleware('throttle:30,1')
+        ->name('check-email');
+
     Route::get('forgot-password', [PasswordResetLinkController::class, 'create'])
         ->name('password.request');
 
