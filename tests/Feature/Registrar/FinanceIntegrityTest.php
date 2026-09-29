@@ -77,7 +77,7 @@ class FinanceIntegrityTest extends TestCase
         $refund(300)->assertSessionHasNoErrors();
         $refund(200)->assertSessionHasErrors('amount');
 
-        $this->assertEquals(-300, (float) $enrollment->financeLedgers()->where('type', 'refund')->sum('amount'));
+        $this->assertEquals(300, (float) $enrollment->financeLedgers()->where('type', 'refund')->sum('amount'));
     }
 
     public function test_discount_cannot_exceed_balance(): void

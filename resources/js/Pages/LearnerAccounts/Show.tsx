@@ -426,18 +426,32 @@ export default function Show({ enrollment, emailedReceiptIds = [], statementSent
                                 Registration Settled & Approved by Finance
                             </span>
                         )}
-                        {enrollment.financial_status === 'No Assessment' && (
+                        {(!enrollment.ledgers?.some((l: any) => l.type === 'charge' && l.description?.toLowerCase().includes('tuition')) || enrollment.financial_status === 'No Assessment') ? (
                             <button 
                                 onClick={() => {
                                     setData('mode', enrollment.mode || 'face_to_face');
                                     setActionType('assess');
                                 }} 
-                                className="bg-[#002b80] hover:bg-[#004d31] text-white font-extrabold text-xs uppercase px-5 py-3 rounded-lg shadow-sm transition flex items-center gap-2"
+                                className="bg-[#002b80] hover:bg-[#001746] text-white font-black text-xs uppercase px-5 py-3 rounded-xl shadow-xs transition flex items-center gap-2"
                             >
-                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                                <svg className="w-4 h-4 text-[#ffc000]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                                     <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                                 </svg>
-                                Assess Tuition Fee
+                                Assess Tuition &amp; 10-Month Plan
+                            </button>
+                        ) : (
+                            <button 
+                                onClick={() => {
+                                    setData('mode', enrollment.mode || 'face_to_face');
+                                    setActionType('assess');
+                                }} 
+                                className="bg-white border-2 border-[#002b80] text-[#002b80] hover:bg-slate-50 font-extrabold text-xs uppercase px-4 py-2.5 rounded-lg transition flex items-center gap-1.5"
+                                title="Re-assess tuition and synchronize 10-month installment plan"
+                            >
+                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 1121.21 8H17" />
+                                </svg>
+                                Re-Assess / Sync Plan
                             </button>
                         )}
                         
@@ -531,6 +545,22 @@ export default function Show({ enrollment, emailedReceiptIds = [], statementSent
                             </svg>
                             Print Statement
                         </a>
+
+                        <Link
+                            href={route('enrollments.contract.edit', enrollment.id)}
+                            className="bg-amber-400 hover:bg-amber-300 text-amber-950 font-black text-xs uppercase px-5 py-2.5 rounded-lg shadow-xs transition flex items-center gap-2"
+                        >
+                            <span>✏️ Edit Contract</span>
+                        </Link>
+
+                        <a 
+                            href={route('enrollments.contract', enrollment.id)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="bg-[#002b80] hover:bg-[#001746] text-white font-extrabold text-xs uppercase px-5 py-2.5 rounded-lg shadow-xs transition flex items-center gap-2"
+                        >
+                            <span>📄 Contract PDF</span>
+                        </a>
                     </div>
 
                     {/* Installment Plan Summary Block */}
@@ -545,12 +575,12 @@ export default function Show({ enrollment, emailedReceiptIds = [], statementSent
                                             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                                                 <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                                             </svg>
-                                            <span className="text-sm font-black uppercase tracking-wider">Active Installment Plan</span>
+                                            <span className="text-sm font-black uppercase tracking-wider">Active 10-Month Installment Plan (Inclusive of 5% VAT)</span>
                                         </div>
                                         <div className="flex items-center gap-4 text-xs text-slate-700">
                                             <p>Term: <span className="font-extrabold text-[#002b80]">{plan.total_months} Months</span></p>
                                             <span className="text-slate-300">•</span>
-                                            <p>Monthly Amount: <span className="font-extrabold text-[#002b80]">AED {parseFloat(plan.monthly_amount).toLocaleString()}</span></p>
+                                            <p>Monthly Amount: <span className="font-extrabold text-[#002b80]">AED {parseFloat(plan.monthly_amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span> <span className="text-[10px] text-slate-500 font-bold">(VAT incl.)</span></p>
                                             <span className="text-slate-300">•</span>
                                             <p>Start Date: <span className="font-bold text-slate-800">{new Date(plan.start_date).toLocaleDateString()}</span></p>
                                         </div>
@@ -684,16 +714,16 @@ export default function Show({ enrollment, emailedReceiptIds = [], statementSent
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm">
                                             <span className={`px-2.5 py-1 inline-flex text-xs leading-5 font-black rounded-md uppercase tracking-wide
-                                                ${item.type === 'payment' || item.type === 'discount' ? 'bg-[#e2f0d9] text-[#385723]' : 'bg-[#fce4d6] text-[#c65911]'}
+                                                ${item.type === 'payment' || item.type === 'discount' ? 'bg-[#e2f0d9] text-[#385723]' : item.type === 'transfer' ? 'bg-slate-100 text-slate-700' : 'bg-[#fce4d6] text-[#c65911]'}
                                             `}>
                                                 {item.type}
                                             </span>
                                         </td>
                                         <td className="px-6 py-4 text-sm text-slate-900 font-medium">{item.description}</td>
                                         <td className={`px-6 py-4 whitespace-nowrap text-right text-sm font-black
-                                            ${item.type === 'payment' || item.type === 'discount' ? 'text-green-600' : 'text-red-600'}
+                                            ${parseFloat(item.amount) < 0 ? 'text-green-600' : 'text-red-600'}
                                         `}>
-                                            {item.type === 'payment' || item.type === 'discount' ? '-' : '+'}
+                                            {parseFloat(item.amount) < 0 ? '-' : '+'}
                                             {Math.abs(parseFloat(item.amount)).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-center">
@@ -848,8 +878,8 @@ export default function Show({ enrollment, emailedReceiptIds = [], statementSent
 
                         {actionType === 'assess' && (
                             <div className="space-y-4">
-                                <p className="text-sm text-gray-600">
-                                    Are you sure you want to manually assess tuition and mandatory fees for this student? This will generate the base charges and VAT on their ledger.
+                                <p className="text-sm text-slate-700 font-medium">
+                                    Are you sure you want to assess tuition and mandatory fees for this student? This will generate the base charges and automatically create a 10-month installment plan (all tuition and mandatory fees are inclusive of 5% UAE VAT).
                                 </p>
                                 <div>
                                     <InputLabel htmlFor="mode" value="Study Mode" />

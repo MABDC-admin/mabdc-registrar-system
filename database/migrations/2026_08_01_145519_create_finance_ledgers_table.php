@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::create('finance_ledgers', function (Blueprint $table) {
             $table->id();
             $table->foreignId('enrollment_id')->constrained()->cascadeOnDelete();
-            $table->enum('type', ['charge', 'payment', 'discount', 'tax', 'refund']);
+            $table->enum('type', ['charge', 'payment', 'discount', 'tax', 'refund', 'transfer']);
             $table->string('description');
             $table->decimal('amount', 10, 2);
             $table->date('transaction_date');

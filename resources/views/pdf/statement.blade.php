@@ -78,6 +78,7 @@
         .badge-payment  { background: #dcfce7; color: #166534; }
         .badge-discount { background: #f0fdf4; color: #14532d; }
         .badge-refund   { background: #fef9c3; color: #854d0e; }
+        .badge-transfer { background: #f1f5f9; color: #334155; }
 
         /* ── Summary Footer ── */
         .summary-wrap { width: 100%; margin-top: 10px; }

@@ -22,7 +22,8 @@ class FinanceController extends Controller
         $totalPayments = abs(FinanceLedger::where('type', 'payment')->sum('amount'));
         $totalRefunds  = abs(FinanceLedger::where('type', 'refund')->sum('amount'));
         $totalDiscounts= abs(FinanceLedger::where('type', 'discount')->sum('amount'));
-        $outstanding   = $totalBilled - $totalPayments - $totalDiscounts - $totalRefunds;
+        // Every ledger entry is signed (refunds positive, carry-forward transfers net to zero), so the sum is what is owed.
+        $outstanding   = (float) FinanceLedger::sum('amount');
         $collectionRate= $totalBilled > 0 ? round(($totalPayments / $totalBilled) * 100, 1) : 0;
 
         // Overdue: enrollments with balance > 0 and financial_status != 'Cleared'
@@ -414,21 +415,30 @@ class FinanceController extends Controller
             'transaction_date' => 'required|date',
         ]);
 
-        $totalPaid = -(float) $enrollment->financeLedgers()->where('type', 'payment')->sum('amount');
-        $totalRefunded = -(float) $enrollment->financeLedgers()->where('type', 'refund')->sum('amount');
-        $refundable = $totalPaid - $totalRefunded;
-        if ($request->amount > $refundable + 0.001) {
-            return redirect()->back()->withErrors([
-                'amount' => 'Refund (AED ' . number_format($request->amount, 2) . ') cannot exceed the amount paid and not yet refunded (AED ' . number_format(max($refundable, 0), 2) . ').',
-            ]);
-        }
+        $error = DB::transaction(function () use ($request, $enrollment) {
+            // Lock the enrollment so two concurrent refunds cannot both pass the refundable guard.
+            Enrollment::query()->whereKey($enrollment->id)->lockForUpdate()->first();
 
-        $enrollment->financeLedgers()->create([
-            'type'             => 'refund',
-            'description'      => 'Refund: ' . $request->reason,
-            'amount'           => -$request->amount, // Negative – reduces amount owed
-            'transaction_date' => $request->transaction_date,
-        ]);
+            $totalPaid = -(float) $enrollment->financeLedgers()->where('type', 'payment')->sum('amount');
+            $totalRefunded = (float) $enrollment->financeLedgers()->where('type', 'refund')->sum('amount');
+            $refundable = $totalPaid - $totalRefunded;
+            if ($request->amount > $refundable + 0.001) {
+                return 'Refund (AED ' . number_format($request->amount, 2) . ') cannot exceed the amount paid and not yet refunded (AED ' . number_format(max($refundable, 0), 2) . ').';
+            }
+
+            $enrollment->financeLedgers()->create([
+                'type'             => 'refund',
+                'description'      => 'Refund: ' . $request->reason,
+                'amount'           => $request->amount, // Positive – money handed back reverses a payment
+                'transaction_date' => $request->transaction_date,
+            ]);
+
+            return null;
+        });
+
+        if ($error) {
+            return redirect()->back()->withErrors(['amount' => $error]);
+        }
 
         // Log Audit Event
         AuditEvent::query()->create([
@@ -545,7 +555,24 @@ class FinanceController extends Controller
             ['base_tuition' => $validated['base_tuition']]
         );
 
-        return redirect()->back()->with('success', 'Grade level fee updated successfully.');
+        return redirect()->back()->with('success', "Tuition fee structure for {$validated['grade_level']} ({$validated['mode']}) saved successfully.");
+    }
+
+    public function updateSettings(Request $request, \App\Models\GradeLevelFee $fee)
+    {
+        $validated = $request->validate([
+            'grade_level' => 'required|string',
+            'base_tuition' => 'required|numeric|min:0',
+            'mode' => 'required|string|in:face_to_face,online',
+        ]);
+
+        $fee->update([
+            'grade_level' => $validated['grade_level'],
+            'mode' => $validated['mode'],
+            'base_tuition' => $validated['base_tuition'],
+        ]);
+
+        return redirect()->back()->with('success', "Tuition fee structure for {$fee->grade_level} ({$fee->mode}) updated successfully.");
     }
 
     public function destroySettings(\App\Models\GradeLevelFee $fee)
@@ -584,101 +611,12 @@ class FinanceController extends Controller
             })
             ->get();
 
+        // Same assessment as a single learner (carry-forward, tuition + VAT, mandatory fees,
+        // 10-month plan), one transaction per learner so a failure never half-assesses anyone.
+        $assessor = app(LearnerAccountController::class);
         $count = 0;
         foreach ($enrollments as $enrollment) {
-            
-            // --- CARRY FORWARD LOGIC ---
-            $pastEnrollments = Enrollment::where('learner_id', $enrollment->learner_id)
-                ->where('id', '!=', $enrollment->id)
-                ->get();
-
-            $totalArrears = 0;
-            $totalCredits = 0;
-            foreach ($pastEnrollments as $past) {
-                $pastBalance = $past->financeLedgers()->sum('amount');
-                if ($pastBalance > 0) {
-                    $totalArrears += $pastBalance;
-                    $past->financeLedgers()->create([
-                        'type' => 'payment',
-                        'description' => 'Balance transferred to new Academic Year',
-                        'amount' => -$pastBalance,
-                        'transaction_date' => now(),
-                    ]);
-                    $past->update(['financial_status' => 'Cleared']);
-                } elseif ($pastBalance < 0) {
-                    $absCredit = abs($pastBalance);
-                    $totalCredits += $absCredit;
-                    $past->financeLedgers()->create([
-                        'type' => 'charge',
-                        'description' => 'Credit balance transferred to new Academic Year',
-                        'amount' => $absCredit,
-                        'transaction_date' => now(),
-                    ]);
-                    $past->update(['financial_status' => 'Cleared']);
-                }
-            }
-
-            if ($totalArrears > 0) {
-                $enrollment->financeLedgers()->create([
-                    'type' => 'charge',
-                    'description' => 'Previous Year Arrears Forwarded',
-                    'amount' => $totalArrears,
-                    'transaction_date' => now(),
-                ]);
-            }
-
-            if ($totalCredits > 0) {
-                $enrollment->financeLedgers()->create([
-                    'type' => 'discount',
-                    'description' => 'Previous Year Credit Balance Forwarded',
-                    'amount' => -$totalCredits,
-                    'transaction_date' => now(),
-                ]);
-            }
-            // ---------------------------
-
-            // Assess base tuition if configured — skip if already charged (extra guard)
-            if ($gradeLevelFee) {
-                $alreadyCharged = $enrollment->financeLedgers()
-                    ->where('type', 'charge')
-                    ->where('description', 'Tuition Fee')
-                    ->exists();
-
-                if (!$alreadyCharged) {
-                    $enrollment->financeLedgers()->create([
-                        'type' => 'charge',
-                        'description' => 'Tuition Fee',
-                        'amount' => $gradeLevelFee->base_tuition,
-                        'transaction_date' => now(),
-                    ]);
-                }
-            }
-
-            foreach ($fees as $fee) {
-                $enrollment->financeLedgers()->create([
-                    'type' => 'charge',
-                    'description' => $fee->name,
-                    'amount' => $fee->amount,
-                    'transaction_date' => now(),
-                ]);
-            }
-
-            // Generate Registration Fee Payment (-500.00) during batch assessment
-            $hasRegFee = $enrollment->financeLedgers()
-                ->where('type', 'payment')
-                ->where('description', 'like', '%Registration%')
-                ->exists();
-
-            if (!$hasRegFee) {
-                $enrollment->financeLedgers()->create([
-                    'type' => 'payment',
-                    'description' => 'Registration Fee',
-                    'amount' => -500.00,
-                    'transaction_date' => now(),
-                ]);
-            }
-            
-            $enrollment->update(['financial_status' => 'Unpaid']);
+            $assessor->autoAssessAndCreateInstallmentPlan($enrollment, $validated['mode']);
             $count++;
         }
 
@@ -696,5 +634,39 @@ class FinanceController extends Controller
         ]);
 
         return redirect()->back()->with('success', "Successfully assessed tuition and mandatory fees for {$count} students in {$validated['grade_level']} ({$validated['mode']}).");
+    }
+
+    /**
+     * Real-time notification endpoint for Finance and Registrar live alerts.
+     */
+    public function liveStatus(Request $request)
+    {
+        $pendingQuery = \App\Models\AdmissionApplication::query()
+            ->whereNull('learner_id')
+            ->where(function ($q) {
+                $q->where('status', \App\Enums\ApplicationStatus::AwaitingDownpayment->value)
+                  ->orWhere('status', 'awaiting_downpayment')
+                  ->orWhereNull('status')
+                  ->orWhere('status', 'pending');
+            });
+
+        $pendingCount = $pendingQuery->count();
+        $latestApplications = $pendingQuery->orderBy('created_at', 'desc')
+            ->take(5)
+            ->get(['id', 'first_name', 'middle_name', 'last_name', 'level_applied_for', 'created_at'])
+            ->map(fn ($app) => [
+                'id' => $app->id,
+                'full_name' => $app->full_name,
+                'level_applied_for' => $app->level_applied_for,
+                'created_at' => $app->created_at?->diffForHumans() ?? 'Just now',
+            ])
+            ->values();
+
+        return response()->json([
+            'pendingRegistrationCount' => $pendingCount,
+            'recentPendingRegistrations' => $latestApplications,
+            'latestId' => $latestApplications->first()?->id ?? null,
+            'timestamp' => now()->toISOString(),
+        ]);
     }
 }

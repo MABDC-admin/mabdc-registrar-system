@@ -124,17 +124,177 @@ class LearnerAccountController extends Controller
             'receipt_no' => 'nullable|string|max:100',
         ]);
 
-        $application->update([
-            'status' => \App\Enums\ApplicationStatus::ApprovedForEnrollment->value,
-            'metadata' => array_merge($application->metadata ?? [], [
-                'registration_settled' => true,
-                'registration_settled_at' => now()->toDateTimeString(),
-                'registration_settled_by' => auth()->id(),
-                'downpayment_receipt_no' => $validated['receipt_no'] ?? 'REG-SETTLED-' . rand(1000, 9999),
-            ]),
-        ]);
+        $receiptNo = !empty($validated['receipt_no']) ? $validated['receipt_no'] : 'OR-' . date('Ymd') . '-' . rand(1000, 9999);
 
-        return redirect()->back()->with('success', "Registration settled for applicant {$application->full_name}! Parent can now return to Registrar for contract signing & admission.");
+        return \Illuminate\Support\Facades\DB::transaction(function () use ($application, $receiptNo) {
+            // Lock the application so a double-click or retry cannot record the downpayment twice.
+            $application = \App\Models\AdmissionApplication::query()->whereKey($application->id)->lockForUpdate()->firstOrFail();
+            if (!empty($application->metadata['registration_settled'])) {
+                return redirect()->back()->withErrors([
+                    'receipt_no' => 'This application\'s registration has already been settled (Receipt #' . ($application->metadata['downpayment_receipt_no'] ?? 'n/a') . ').',
+                ]);
+            }
+
+            $classVal =is_object($application->classification) ? $application->classification->value : (string) $application->classification;
+
+            // 1. Find or create Learner
+            $normalizedName = preg_replace('/\s+/', ' ', trim(preg_replace('/[^A-Z0-9]+/', ' ', strtoupper($application->full_name))));
+            $learner = null;
+            if ($application->learner_id) {
+                $learner = Learner::find($application->learner_id);
+            }
+            if (!$learner) {
+                $learner = Learner::where('normalized_name', $normalizedName)->first();
+            }
+            if (!$learner) {
+                $learner = Learner::create([
+                    'full_name' => $application->full_name,
+                    'normalized_name' => $normalizedName,
+                    'birth_date' => $application->date_of_birth,
+                    'mother_contact_number' => $application->contact_number,
+                    'mother_email' => $application->email,
+                    'metadata' => [
+                        'enrollment_type' => $classVal,
+                        'date_admitted' => now()->toDateString(),
+                        'contact_preferences' => [
+                            'primary_email' => $application->email,
+                            'primary_mobile' => $application->contact_number,
+                        ],
+                        'academic' => [
+                            'program' => $application->metadata['program'] ?? 'Regular',
+                        ]
+                    ],
+                ]);
+            }
+
+            // 2. Find or create Enrollment
+            $enrollment = Enrollment::where('academic_year_id', $application->academic_year_id)
+                ->where('learner_id', $learner->id)
+                ->first();
+
+            if (!$enrollment) {
+                $enrollment = Enrollment::create([
+                    'academic_year_id' => $application->academic_year_id,
+                    'learner_id' => $learner->id,
+                    'level' => $application->level_applied_for,
+                    'session' => $application->metadata['session'] ?? 'Morning',
+                    'status' => 'enrolled',
+                    'financial_status' => 'Partially Paid',
+                    'registration_settled' => true,
+                    'registration_settled_at' => now(),
+                    'registration_settled_by' => auth()->id(),
+                    'downpayment_verified_at' => now(),
+                    'downpayment_receipt_no' => $receiptNo,
+                    'session_slot_reserved' => true,
+                    'capacity_waitlisted' => false,
+                    'enrolled_on' => now(),
+                    'metadata' => [],
+                ]);
+            } else {
+                $enrollment->update([
+                    'status' => 'enrolled',
+                    'registration_settled' => true,
+                    'registration_settled_at' => now(),
+                    'registration_settled_by' => auth()->id(),
+                    'downpayment_verified_at' => now(),
+                    'downpayment_receipt_no' => $receiptNo,
+                    'enrolled_on' => now(),
+                ]);
+            }
+
+            // An existing enrollment may already have its downpayment recorded (e.g. via Mark Registration Settled).
+            $hasRegPayment = $enrollment->financeLedgers()->where('type', 'payment')->where('description', 'like', '%Registration%')->exists();
+            if ($hasRegPayment) {
+                // Throw (not return) so the enrollment changes above are rolled back too.
+                throw \Illuminate\Validation\ValidationException::withMessages([
+                    'receipt_no' => 'The registration downpayment for this learner is already recorded on their account.',
+                ]);
+            }
+
+            // 3. Post Finance Ledger charge & payment for Registration Fee (₱500 / AED 500 equivalent)
+            $regCharge = $enrollment->financeLedgers()->where('type', 'charge')->where('description', 'like', '%Registration Fee%')->first();
+            if (!$regCharge) {
+                $enrollment->financeLedgers()->create([
+                    'type' => 'charge',
+                    'description' => 'Registration Fee',
+                    'amount' => 500.00,
+                    'transaction_date' => now(),
+                ]);
+            }
+
+            $payment = \App\Models\Payment::create([
+                'enrollment_id' => $enrollment->id,
+                'amount' => 500.00,
+                'payment_method' => 'Cash',
+                'reference_number' => $receiptNo,
+                'status' => 'completed',
+                'transaction_date' => now(),
+                'processed_by' => auth()->id(),
+                'remarks' => 'Registration Downpayment (Automatic Enrollment)',
+            ]);
+
+            $receipt = Receipt::create([
+                'payment_id' => $payment->id,
+                'receipt_number' => $receiptNo,
+                'issued_date' => now(),
+                'notes' => 'Registration Fee Downpayment / Tax Invoice',
+            ]);
+
+            $enrollment->financeLedgers()->create([
+                'type' => 'payment',
+                'description' => 'Registration Fee Settlement (Receipt: ' . $receiptNo . ')',
+                'amount' => -500.00,
+                'transaction_date' => now(),
+            ]);
+
+            // 4. Auto-assess Tuition & Mandatory Fees + Auto-generate 10-Month Installment Plan (inclusive of 5% VAT)
+            $this->autoAssessAndCreateInstallmentPlan($enrollment, $application->metadata['mode'] ?? 'face_to_face');
+
+            // 5. Update Application status
+            $application->update([
+                'learner_id' => $learner->id,
+                'status' => \App\Enums\ApplicationStatus::ApprovedForEnrollment->value,
+                'metadata' => array_merge($application->metadata ?? [], [
+                    'registration_settled' => true,
+                    'registration_settled_at' => now()->toDateTimeString(),
+                    'registration_settled_by' => auth()->id(),
+                    'downpayment_receipt_no' => $receiptNo,
+                    'auto_enrolled' => true,
+                ]),
+            ]);
+
+            // 6. Audit Event
+            AuditEvent::create([
+                'event_type' => 'registration_settled_and_auto_enrolled',
+                'subject_type' => Enrollment::class,
+                'subject_id' => $enrollment->id,
+                'user_id' => auth()->id(),
+                'actor_id' => auth()->id(),
+                'metadata' => [
+                    'receipt_no' => $receiptNo,
+                    'receipt_id' => $receipt->id,
+                    'learner_id' => $learner->id,
+                    'application_id' => $application->id,
+                ],
+            ]);
+
+            // 7. Generate Contract PDF & Email if parent email available
+            try {
+                $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('pdf.contract', ['enrollment' => $enrollment]);
+                $pdfData = $pdf->output();
+                if (!empty($application->email)) {
+                    \Illuminate\Support\Facades\Mail::to($application->email)->send(new \App\Mail\EnrollmentContractMail($enrollment, $pdfData));
+                }
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::error("Auto-enroll contract generation/email: " . $e->getMessage());
+            }
+
+            return redirect()->back()->with([
+                'success' => "Applicant {$application->full_name} is now officially ENROLLED! Registration settled, fees assessed, and 10-Month Installment Plan (inclusive of 5% VAT) generated. (Receipt #{$receiptNo})",
+                'receipt_id' => $receipt->id,
+                'receipt_url' => route('finance.receipt', $receipt->id),
+            ]);
+        });
     }
 
     /**
@@ -247,6 +407,201 @@ class LearnerAccountController extends Controller
         return app(FinanceController::class)->storeInstallmentPlan($request, $enrollment);
     }
 
+    public static function normalizeLevel(?string $level): string
+    {
+        $level = trim((string) $level);
+        if (preg_match('/^(?:grade|gr|g|group)\s*0*([0-9]+)$/i', $level, $m)) {
+            return 'G' . (int) $m[1];
+        }
+        if (preg_match('/^(?:level|lvl|l)\s*0*([0-9]+)$/i', $level, $m)) {
+            return 'L' . (int) $m[1];
+        }
+        if (preg_match('/^0*([0-9]+)$/', $level, $m)) {
+            return 'G' . (int) $m[1];
+        }
+        return strtoupper($level);
+    }
+
+    /**
+     * Auto-assesses the tuition & mandatory fees and auto-generates a 10-month installment plan
+     * (all fees and monthly installment amounts are inclusive of 5% VAT).
+     */
+    public function autoAssessAndCreateInstallmentPlan(Enrollment $enrollment, ?string $mode = null)
+    {
+        $mode = $mode ?: ($enrollment->mode ?: 'face_to_face');
+        if ($enrollment->mode !== $mode) {
+            $enrollment->update(['mode' => $mode]);
+        }
+
+        $normLevel = self::normalizeLevel($enrollment->level);
+        $rawLevel  = $enrollment->level;
+
+        // 1. Find GradeLevelFee for this level & mode (base tuition inclusive of 5% VAT)
+        $gradeLevelFee = \App\Models\GradeLevelFee::where(function ($q) use ($normLevel, $rawLevel) {
+                $q->where('grade_level', $normLevel)->orWhere('grade_level', $rawLevel);
+            })
+            ->where('mode', $mode)
+            ->first();
+
+        // 2. Find mandatory active FeeStructures (inclusive of 5% VAT, excluding registration type)
+        $fees = \App\Models\FeeStructure::where('is_active', true)
+            ->where(function ($q) use ($normLevel, $rawLevel) {
+                $q->whereNull('level')
+                  ->orWhere('level', $normLevel)
+                  ->orWhere('level', $rawLevel);
+            })
+            ->where('is_optional', false)
+            ->where('type', '!=', 'registration')
+            ->where('name', 'not like', '%Registration%')
+            ->get();
+
+        \DB::transaction(function () use ($enrollment, $gradeLevelFee, $fees) {
+            // Check if Tuition Fee is already assessed
+            $hasTuition = $enrollment->financeLedgers()
+                ->where('type', 'charge')
+                ->where('description', 'like', '%Tuition%')
+                ->exists();
+
+            if (!$hasTuition) {
+                // --- CARRY FORWARD LOGIC ---
+                // Both legs are 'transfer' entries: they move a balance between years without
+                // counting as new billing, a discount or cash collected.
+                $pastEnrollments = Enrollment::where('learner_id', $enrollment->learner_id)
+                    ->where('id', '!=', $enrollment->id)
+                    ->get();
+
+                $totalArrears = 0;
+                $totalCredits = 0;
+                foreach ($pastEnrollments as $past) {
+                    $pastBalance = (float) $past->financeLedgers()->sum('amount');
+                    if ($pastBalance > 0.001) {
+                        $totalArrears += $pastBalance;
+                        $past->financeLedgers()->create([
+                            'type' => 'transfer',
+                            'description' => 'Balance transferred to new Academic Year',
+                            'amount' => -$pastBalance,
+                            'transaction_date' => now(),
+                        ]);
+                        $past->update(['financial_status' => 'Cleared']);
+                    } elseif ($pastBalance < -0.001) {
+                        $absCredit = abs($pastBalance);
+                        $totalCredits += $absCredit;
+                        $past->financeLedgers()->create([
+                            'type' => 'transfer',
+                            'description' => 'Credit balance transferred to new Academic Year',
+                            'amount' => $absCredit,
+                            'transaction_date' => now(),
+                        ]);
+                        $past->update(['financial_status' => 'Cleared']);
+                    }
+                }
+
+                if ($totalArrears > 0) {
+                    $enrollment->financeLedgers()->create([
+                        'type' => 'transfer',
+                        'description' => 'Previous Year Arrears Forwarded',
+                        'amount' => $totalArrears,
+                        'transaction_date' => now(),
+                    ]);
+                }
+
+                if ($totalCredits > 0) {
+                    $enrollment->financeLedgers()->create([
+                        'type' => 'transfer',
+                        'description' => 'Previous Year Credit Balance Forwarded',
+                        'amount' => -$totalCredits,
+                        'transaction_date' => now(),
+                    ]);
+                }
+
+                // Assess base tuition + 5% VAT (Total Tuition is inclusive of 5% VAT)
+                if ($gradeLevelFee) {
+                    $totalTuition = (float) $gradeLevelFee->base_tuition;
+                    $basePrice = round($totalTuition / 1.05, 2);
+                    $vatAmount = round($totalTuition - $basePrice, 2);
+
+                    $enrollment->financeLedgers()->create([
+                        'type' => 'charge',
+                        'description' => 'Tuition Fee',
+                        'amount' => $basePrice,
+                        'transaction_date' => now(),
+                    ]);
+
+                    if ($vatAmount > 0) {
+                        $enrollment->financeLedgers()->create([
+                            'type' => 'tax',
+                            'description' => 'UAE VAT (5%) on Tuition Fee',
+                            'amount' => $vatAmount,
+                            'transaction_date' => now(),
+                        ]);
+                    }
+                }
+
+                // Assess other mandatory fees (inclusive of 5% VAT)
+                foreach ($fees as $fee) {
+                    $feeAmount = abs((float) $fee->amount);
+                    if ($feeAmount > 0) {
+                        $feeExists = $enrollment->financeLedgers()
+                            ->where('type', 'charge')
+                            ->where('description', $fee->name)
+                            ->exists();
+
+                        if (!$feeExists) {
+                            $enrollment->financeLedgers()->create([
+                                'type' => 'charge',
+                                'description' => $fee->name,
+                                'amount' => $feeAmount,
+                                'transaction_date' => now(),
+                            ]);
+                        }
+                    }
+                }
+            }
+
+            // 3. Auto-generate / Sync 10-Month Installment Plan (Inclusive of 5% VAT)
+            $currentBalance = (float) $enrollment->financeLedgers()->sum('amount');
+            $existingPlan = $enrollment->installmentPlans()->latest()->first();
+
+            if ($currentBalance > 0) {
+                $totalMonths = 10;
+                $monthlyAmount = round($currentBalance / $totalMonths, 2);
+                $startDate = now()->toDateString();
+
+                if (!$existingPlan) {
+                    $enrollment->installmentPlans()->create([
+                        'total_months' => $totalMonths,
+                        'monthly_amount' => $monthlyAmount,
+                        'start_date' => $startDate,
+                    ]);
+
+                    AuditEvent::query()->create([
+                        'actor_id' => auth()->id(),
+                        'event_type' => 'installment_plan_created',
+                        'subject_type' => Enrollment::class,
+                        'subject_id' => $enrollment->id,
+                        'before' => null,
+                        'after' => [
+                            'total_months' => $totalMonths,
+                            'monthly_amount' => $monthlyAmount,
+                            'start_date' => $startDate,
+                        ],
+                        'metadata' => [
+                            'learner_name' => optional($enrollment->learner)->full_name,
+                            'message' => 'Auto-generated 10-Month Installment Plan (AED ' . number_format($monthlyAmount, 2) . '/month, inclusive of 5% VAT)',
+                        ],
+                    ]);
+                } else {
+                    $existingPlan->update([
+                        'total_months' => $totalMonths,
+                        'monthly_amount' => $monthlyAmount,
+                    ]);
+                }
+            }
+        });
+
+        app(FinanceController::class)->updateFinancialStatus($enrollment);
+    }
+
     public function assessTuition(Request $request, Enrollment $enrollment)
     {
         $mode = $request->input('mode', $enrollment->mode ?? 'face_to_face');
@@ -255,120 +610,9 @@ class LearnerAccountController extends Controller
             $enrollment->update(['mode' => $mode]);
         }
 
-        // 1. Find GradeLevelFee for this level
-        $gradeLevelFee = \App\Models\GradeLevelFee::where('grade_level', $enrollment->level)
-            ->where('mode', $mode)
-            ->first();
+        $this->autoAssessAndCreateInstallmentPlan($enrollment, $mode);
 
-        // 2. Find mandatory active FeeStructures
-        $fees = \App\Models\FeeStructure::where('is_active', true)
-            ->where(function($q) use ($enrollment) {
-                $q->whereNull('level')->orWhere('level', $enrollment->level);
-            })
-            ->where('is_optional', false)
-            ->get();
-
-        if (!$gradeLevelFee && $fees->isEmpty()) {
-            return redirect()->back()->withErrors(['message' => 'No active mandatory fee structures or tuition fees defined for this grade level.']);
-        }
-
-        // 3. Prevent duplicate assessment if they already have charges
-        $hasCharges = $enrollment->financeLedgers()->whereIn('type', ['charge', 'tax'])->exists();
-        if ($hasCharges) {
-            return redirect()->back()->withErrors(['message' => 'This student has already been assessed for this academic year.']);
-        }
-
-        \DB::transaction(function () use ($enrollment, $gradeLevelFee, $fees) {
-            
-            // --- CARRY FORWARD LOGIC ---
-            $pastEnrollments = Enrollment::where('learner_id', $enrollment->learner_id)
-                ->where('id', '!=', $enrollment->id)
-                ->get();
-
-            $totalArrears = 0;
-            $totalCredits = 0;
-            foreach ($pastEnrollments as $past) {
-                $pastBalance = $past->financeLedgers()->sum('amount');
-                if ($pastBalance > 0) {
-                    $totalArrears += $pastBalance;
-                    $past->financeLedgers()->create([
-                        'type' => 'payment',
-                        'description' => 'Balance transferred to new Academic Year',
-                        'amount' => -$pastBalance,
-                        'transaction_date' => now(),
-                    ]);
-                    $past->update(['financial_status' => 'Cleared']);
-                } elseif ($pastBalance < 0) {
-                    $absCredit = abs($pastBalance);
-                    $totalCredits += $absCredit;
-                    $past->financeLedgers()->create([
-                        'type' => 'charge',
-                        'description' => 'Credit balance transferred to new Academic Year',
-                        'amount' => $absCredit,
-                        'transaction_date' => now(),
-                    ]);
-                    $past->update(['financial_status' => 'Cleared']);
-                }
-            }
-
-            if ($totalArrears > 0) {
-                $enrollment->financeLedgers()->create([
-                    'type' => 'charge',
-                    'description' => 'Previous Year Arrears Forwarded',
-                    'amount' => $totalArrears,
-                    'transaction_date' => now(),
-                ]);
-            }
-
-            if ($totalCredits > 0) {
-                $enrollment->financeLedgers()->create([
-                    'type' => 'discount',
-                    'description' => 'Previous Year Credit Balance Forwarded',
-                    'amount' => -$totalCredits,
-                    'transaction_date' => now(),
-                ]);
-            }
-            // ---------------------------
-
-            // Assess base tuition (tax is already included in base_tuition)
-            if ($gradeLevelFee) {
-                $enrollment->financeLedgers()->create([
-                    'type' => 'charge',
-                    'description' => 'Tuition Fee',
-                    'amount' => $gradeLevelFee->base_tuition,
-                    'transaction_date' => now(),
-                ]);
-            }
-
-            // Assess other mandatory fees (tax is already included in the amount)
-            foreach ($fees as $fee) {
-                $enrollment->financeLedgers()->create([
-                    'type' => 'charge',
-                    'description' => $fee->name,
-                    'amount' => $fee->amount,
-                    'transaction_date' => now(),
-                ]);
-            }
-
-            // Generate Registration Fee Payment (-500.00) during assessment
-            $hasRegFee = $enrollment->financeLedgers()
-                ->where('type', 'payment')
-                ->where('description', 'like', '%Registration%')
-                ->exists();
-
-            if (!$hasRegFee) {
-                $enrollment->financeLedgers()->create([
-                    'type' => 'payment',
-                    'description' => 'Registration Fee',
-                    'amount' => -500.00,
-                    'transaction_date' => now(),
-                ]);
-            }
-
-            $enrollment->update(['financial_status' => 'Unpaid']);
-        });
-
-        return redirect()->back()->with('success', 'Student fees assessed successfully.');
+        return redirect()->back()->with('success', 'Student tuition and mandatory fees assessed successfully, and 10-Month Installment Plan (inclusive of 5% VAT) generated.');
     }
 
     public function updateLedger(Request $request, Enrollment $enrollment, \App\Models\FinanceLedger $ledger)
@@ -383,6 +627,12 @@ class LearnerAccountController extends Controller
             ]);
         }
 
+        if ($ledger->type === 'transfer') {
+            return redirect()->back()->withErrors([
+                'amount' => 'Balance transfers between academic years cannot be edited.',
+            ]);
+        }
+
         $request->validate([
             'transaction_date' => 'required|date',
             'description'      => 'required|string|max:255',
@@ -391,7 +641,7 @@ class LearnerAccountController extends Controller
 
         // Keep the sign correct depending on original ledger type:
         $amount = floatval($request->amount);
-        $isNegativeType = in_array($ledger->type, ['payment', 'discount', 'refund']);
+        $isNegativeType = in_array($ledger->type, ['payment', 'discount']);
         if ($isNegativeType && $amount > 0) {
             $amount = -$amount;
         } elseif (!$isNegativeType && $amount < 0) {
@@ -433,6 +683,12 @@ class LearnerAccountController extends Controller
         if ($ledger->type === 'payment') {
             return redirect()->back()->withErrors([
                 'amount' => 'Payment entries cannot be deleted. Issue a refund to reverse a payment.',
+            ]);
+        }
+
+        if ($ledger->type === 'transfer') {
+            return redirect()->back()->withErrors([
+                'amount' => 'Balance transfers between academic years cannot be deleted.',
             ]);
         }
 
@@ -703,8 +959,10 @@ class LearnerAccountController extends Controller
         $monthlyAmount = (float) $plan->monthly_amount;
         $totalMonths = (int) $plan->total_months;
         
+        // Match payments against the 10 monthly installments (excluding initial registration downpayment)
         $payments = $plan->enrollment->financeLedgers()
             ->where('type', 'payment')
+            ->where('description', 'not like', '%Registration%')
             ->orderBy('transaction_date', 'asc')
             ->orderBy('created_at', 'asc')
             ->get()
@@ -725,12 +983,12 @@ class LearnerAccountController extends Controller
             $status = 'pending';
             $paidDate = null;
             
-            if ($totalPaymentsSum >= $targetAmount) {
+            if ($totalPaymentsSum >= ($targetAmount - 0.01)) {
                 $sum = 0;
                 $completedPayDate = null;
                 foreach ($payments as $pay) {
                     $sum += $pay['amount'];
-                    if ($sum >= $targetAmount) {
+                    if ($sum >= ($targetAmount - 0.01)) {
                         $completedPayDate = $pay['date'];
                         break;
                     }
@@ -805,26 +1063,85 @@ class LearnerAccountController extends Controller
             'receipt_no' => 'nullable|string|max:100',
         ]);
 
-        $enrollment->update([
-            'registration_settled' => true,
-            'registration_settled_at' => now(),
-            'registration_settled_by' => auth()->id(),
-            'downpayment_verified_at' => now(),
-            'downpayment_receipt_no' => $validated['receipt_no'] ?? 'REG-SETTLED-' . rand(1000, 9999),
-            'status' => 'downpayment_paid',
-        ]);
+        $receiptNo = !empty($validated['receipt_no']) ? $validated['receipt_no'] : 'REG-SETTLED-' . rand(1000, 9999);
 
-        AuditEvent::create([
-            'event_type' => 'registration_settled',
-            'subject_type' => Enrollment::class,
-            'subject_id' => $enrollment->id,
-            'user_id' => auth()->id(),
-            'metadata' => [
-                'receipt_no' => $enrollment->downpayment_receipt_no,
-                'settled_at' => now()->toDateTimeString(),
-            ],
-        ]);
+        $error = \DB::transaction(function () use ($enrollment, $receiptNo) {
+            // Lock the enrollment so a double-click or retry cannot record the downpayment twice.
+            $locked = Enrollment::query()->whereKey($enrollment->id)->lockForUpdate()->first();
+            $regPayment = $enrollment->financeLedgers()->where('type', 'payment')->where('description', 'like', '%Registration%')->first();
+            if ($locked->registration_settled) {
+                return 'Registration for this learner is already settled' . ($locked->downpayment_receipt_no ? ' (Receipt #' . $locked->downpayment_receipt_no . ')' : '') . '.';
+            }
 
-        return redirect()->back()->with('success', 'Registration marked as Settled & Approved by Finance. Parent may now proceed to Registrar for admission.');
+            // Ensure registration fee charge & payment exist
+            $regCharge = $enrollment->financeLedgers()->where('type', 'charge')->where('description', 'like', '%Registration Fee%')->first();
+            if (!$regCharge) {
+                $enrollment->financeLedgers()->create([
+                    'type' => 'charge',
+                    'description' => 'Registration Fee',
+                    'amount' => 500.00,
+                    'transaction_date' => now(),
+                ]);
+            }
+
+            if (!$regPayment) {
+                $payment = \App\Models\Payment::create([
+                    'enrollment_id' => $enrollment->id,
+                    'amount' => 500.00,
+                    'payment_method' => 'Cash',
+                    'reference_number' => $receiptNo,
+                    'status' => 'completed',
+                    'transaction_date' => now(),
+                    'processed_by' => auth()->id(),
+                    'remarks' => 'Registration Downpayment Settlement',
+                ]);
+
+                \App\Models\Receipt::create([
+                    'payment_id' => $payment->id,
+                    'receipt_number' => $receiptNo,
+                    'issued_date' => now(),
+                    'notes' => 'Registration Fee Downpayment / Tax Invoice',
+                ]);
+
+                $enrollment->financeLedgers()->create([
+                    'type' => 'payment',
+                    'description' => 'Registration Fee Settlement (Receipt: ' . $receiptNo . ')',
+                    'amount' => -500.00,
+                    'transaction_date' => now(),
+                ]);
+            }
+
+            $enrollment->update([
+                'registration_settled' => true,
+                'registration_settled_at' => now(),
+                'registration_settled_by' => auth()->id(),
+                'downpayment_verified_at' => now(),
+                'downpayment_receipt_no' => $receiptNo,
+                'status' => 'enrolled',
+            ]);
+
+            AuditEvent::create([
+                'event_type' => 'registration_settled',
+                'subject_type' => Enrollment::class,
+                'subject_id' => $enrollment->id,
+                'user_id' => auth()->id(),
+                'actor_id' => auth()->id(),
+                'metadata' => [
+                    'receipt_no' => $receiptNo,
+                    'settled_at' => now()->toDateTimeString(),
+                ],
+            ]);
+
+            return null;
+        });
+
+        if ($error) {
+            return redirect()->back()->withErrors(['receipt_no' => $error]);
+        }
+
+        // Auto-assess tuition & mandatory fees and generate 10-month installment plan
+        $this->autoAssessAndCreateInstallmentPlan($enrollment);
+
+        return redirect()->back()->with('success', 'Registration marked as Settled & Approved! Student is now enrolled, fees assessed, and 10-Month Installment Plan (inclusive of 5% VAT) generated.');
     }
 }
