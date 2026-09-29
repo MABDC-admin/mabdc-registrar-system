@@ -72,9 +72,17 @@ export default function Receipt({ receipt }: any) {
         setSendingEmail(true);
         router.post(route('finance.receipt.email', receipt.id), {}, {
             preserveScroll: true,
-            onSuccess: () => {
+            onSuccess: (page: any) => {
+                if (page.props?.flash?.error || page.props?.errors?.email) {
+                    alert(page.props.flash?.error || page.props.errors?.email);
+                    return;
+                }
                 setEmailSent(true);
                 alert(`Tax Invoice emailed successfully to ${effectiveEmail}!`);
+            },
+            onError: (errors: any) => {
+                const msg = errors.email || errors.message || (typeof errors === 'string' ? errors : Object.values(errors).join('\n')) || 'Failed to send receipt email. Please check mail configuration.';
+                alert(msg);
             },
             onFinish: () => setSendingEmail(false),
         });

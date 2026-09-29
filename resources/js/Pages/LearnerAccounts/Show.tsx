@@ -46,17 +46,25 @@ export default function Show({ enrollment, emailedReceiptIds = [], statementSent
     const [sendingEmail, setSendingEmail] = useState(false);
     const [sendingReceiptEmailId, setSendingReceiptEmailId] = useState<number | null>(null);
     const [editingReceiptEmail, setEditingReceiptEmail] = useState(false);
-    const [receiptEmailValue, setReceiptEmailValue] = useState(enrollment.receipt_email || '');
+    
+    const currentReceiptEmail = enrollment.learner?.receipt_email || enrollment.receipt_email || '';
+    const [receiptEmailValue, setReceiptEmailValue] = useState(currentReceiptEmail);
     const [savingReceiptEmail, setSavingReceiptEmail] = useState(false);
     const [sendingInstallmentPlan, setSendingInstallmentPlan] = useState(false);
 
     useEffect(() => {
-        setReceiptEmailValue(enrollment.receipt_email || '');
-    }, [enrollment.receipt_email]);
+        setReceiptEmailValue(enrollment.learner?.receipt_email || enrollment.receipt_email || '');
+    }, [enrollment.learner?.receipt_email, enrollment.receipt_email]);
+
+    const getEffectiveEmail = () => {
+        return enrollment.learner?.receipt_email ||
+            enrollment.receipt_email ||
+            [enrollment.learner?.mother_email, enrollment.learner?.father_email].filter(Boolean)[0] ||
+            '';
+    };
 
     const handleEmailReceipt = (receiptId: number) => {
-        const effectiveEmail = enrollment.receipt_email ||
-            [enrollment.learner?.mother_email, enrollment.learner?.father_email].filter(Boolean)[0];
+        const effectiveEmail = getEffectiveEmail();
         if (!effectiveEmail) {
             alert('No email configured for this student. Please add a Receipt Email below.');
             return;
@@ -65,13 +73,23 @@ export default function Show({ enrollment, emailedReceiptIds = [], statementSent
         setSendingReceiptEmailId(receiptId);
         router.post(route('finance.receipt.email', receiptId), {}, {
             preserveScroll: true,
+            onSuccess: (page: any) => {
+                if (page.props?.flash?.error || page.props?.errors?.email) {
+                    alert(page.props.flash?.error || page.props.errors?.email);
+                    return;
+                }
+                alert(`Tax Invoice / Receipt emailed successfully to ${effectiveEmail}!`);
+            },
+            onError: (errors: any) => {
+                const msg = errors.email || errors.message || (typeof errors === 'string' ? errors : Object.values(errors).join('\n')) || 'Failed to send receipt email. Please check mail configuration.';
+                alert(msg);
+            },
             onFinish: () => setSendingReceiptEmailId(null),
         });
     };
 
     const handleEmailStatement = () => {
-        const effectiveEmail = enrollment.receipt_email ||
-            [enrollment.learner?.mother_email, enrollment.learner?.father_email].filter(Boolean)[0];
+        const effectiveEmail = getEffectiveEmail();
         if (!effectiveEmail) {
             alert('No email configured for this student. Please add a Receipt Email below.');
             return;
@@ -80,13 +98,23 @@ export default function Show({ enrollment, emailedReceiptIds = [], statementSent
         setSendingEmail(true);
         router.post(route('learner-accounts.email-statement', enrollment.id), {}, {
             preserveScroll: true,
+            onSuccess: (page: any) => {
+                if (page.props?.flash?.error || page.props?.errors?.email) {
+                    alert(page.props.flash?.error || page.props.errors?.email);
+                    return;
+                }
+                alert(`Statement of Account emailed successfully to ${effectiveEmail}!`);
+            },
+            onError: (errors: any) => {
+                const msg = errors.email || errors.message || (typeof errors === 'string' ? errors : Object.values(errors).join('\n')) || 'Failed to send statement email.';
+                alert(msg);
+            },
             onFinish: () => setSendingEmail(false),
         });
     };
 
     const handleEmailInstallmentPlan = (planId: number) => {
-        const effectiveEmail = enrollment.receipt_email ||
-            [enrollment.learner?.mother_email, enrollment.learner?.father_email].filter(Boolean)[0];
+        const effectiveEmail = getEffectiveEmail();
         if (!effectiveEmail) {
             alert('No email configured for this student. Please add a Receipt Email below.');
             return;
@@ -95,6 +123,17 @@ export default function Show({ enrollment, emailedReceiptIds = [], statementSent
         setSendingInstallmentPlan(true);
         router.post(route('learner-accounts.installment.email', planId), {}, {
             preserveScroll: true,
+            onSuccess: (page: any) => {
+                if (page.props?.flash?.error || page.props?.errors?.email) {
+                    alert(page.props.flash?.error || page.props.errors?.email);
+                    return;
+                }
+                alert(`Installment Plan Agreement emailed successfully to ${effectiveEmail}!`);
+            },
+            onError: (errors: any) => {
+                const msg = errors.email || errors.message || (typeof errors === 'string' ? errors : Object.values(errors).join('\n')) || 'Failed to send installment plan email.';
+                alert(msg);
+            },
             onFinish: () => setSendingInstallmentPlan(false),
         });
     };
@@ -105,9 +144,15 @@ export default function Show({ enrollment, emailedReceiptIds = [], statementSent
             receipt_email: receiptEmailValue || null,
         }, {
             preserveScroll: true,
+            onSuccess: () => {
+                setEditingReceiptEmail(false);
+            },
+            onError: (errors: any) => {
+                const msg = errors.receipt_email || Object.values(errors).join('\n') || 'Failed to update email.';
+                alert(msg);
+            },
             onFinish: () => {
                 setSavingReceiptEmail(false);
-                setEditingReceiptEmail(false);
             },
         });
     };
@@ -379,7 +424,7 @@ export default function Show({ enrollment, emailedReceiptIds = [], statementSent
                                     {savingReceiptEmail ? 'Saving…' : 'Save'}
                                 </button>
                                 <button
-                                    onClick={() => { setEditingReceiptEmail(false); setReceiptEmailValue(enrollment.receipt_email || ''); }}
+                                    onClick={() => { setEditingReceiptEmail(false); setReceiptEmailValue(currentReceiptEmail); }}
                                     className="text-slate-500 hover:text-slate-700 text-xs font-bold px-3 py-1.5 rounded-lg border border-slate-200 hover:border-slate-400 transition"
                                 >
                                     Cancel
@@ -387,8 +432,8 @@ export default function Show({ enrollment, emailedReceiptIds = [], statementSent
                             </div>
                         ) : (
                             <div className="flex items-center gap-3 flex-1">
-                                {enrollment.receipt_email ? (
-                                    <span className="text-sm font-semibold text-slate-800">{enrollment.receipt_email}</span>
+                                {currentReceiptEmail ? (
+                                    <span className="text-sm font-semibold text-slate-800">{currentReceiptEmail}</span>
                                 ) : (
                                     <span className="text-sm text-slate-400 italic">No receipt email set — will use parent contacts</span>
                                 )}
@@ -396,7 +441,7 @@ export default function Show({ enrollment, emailedReceiptIds = [], statementSent
                                     onClick={() => setEditingReceiptEmail(true)}
                                     className="ml-auto text-xs text-[#002b80] font-bold border border-[#002b80]/30 px-3 py-1 rounded-lg hover:bg-green-50 transition"
                                 >
-                                    {enrollment.receipt_email ? 'Edit' : '+ Add Email'}
+                                    {currentReceiptEmail ? 'Edit' : '+ Add Email'}
                                 </button>
                             </div>
                         )}

@@ -142,8 +142,8 @@ Route::middleware(['auth', 'role:registrar,admin,finance'])->group(function () {
     Route::post('/finance/{enrollment}/discount', [FinanceController::class, 'storeDiscount'])->middleware('module:finance')->name('finance.discount');
     Route::post('/finance/{enrollment}/refund', [FinanceController::class, 'storeRefund'])->middleware('module:finance')->name('finance.refund');
     Route::post('/finance/{enrollment}/installment', [FinanceController::class, 'storeInstallmentPlan'])->middleware('module:finance')->name('finance.installment');
-    Route::get('/receipts/{receipt}', [FinanceController::class, 'showReceipt'])->middleware('module:finance')->name('finance.receipt');
-    Route::post('/receipts/{receipt}/email', [LearnerAccountController::class, 'emailReceipt'])->middleware('module:finance')->name('finance.receipt.email');
+    Route::get('/receipts/{receipt}', [FinanceController::class, 'showReceipt'])->middleware('module:finance,learner_accounts')->name('finance.receipt');
+    Route::post('/receipts/{receipt}/email', [LearnerAccountController::class, 'emailReceipt'])->middleware('module:finance,learner_accounts')->name('finance.receipt.email');
 
     Route::get('/finance/fees', [FeeStructureController::class, 'index'])->middleware('module:finance')->name('finance.fees.index');
     Route::get('/finance/fees/create', [FeeStructureController::class, 'create'])->middleware('module:finance')->name('finance.fees.create');
