@@ -40,14 +40,14 @@ export default function Receipt({ receipt }: any) {
     const enrollment = payment.enrollment;
     const learner = enrollment.learner;
 
-    // Computations for current payment
+    // Computations for current payment (5% VAT inclusive)
     const totalAmount = parseFloat(payment.amount || 0);
-    const vatIncl = totalAmount * 0.05;
-    const totalBeforeVat = totalAmount - vatIncl;
+    const totalBeforeVat = totalAmount > 0 ? totalAmount / 1.05 : 0;
+    const vatIncl = totalAmount - totalBeforeVat;
 
     // Computations for outstanding balance
     const totalBalance = parseFloat(receipt.current_balance || 0);
-    const outstandingBeforeVat = totalBalance / 1.05;
+    const outstandingBeforeVat = totalBalance > 0 ? totalBalance / 1.05 : 0;
     const outstandingVat = totalBalance - outstandingBeforeVat;
 
     const formatter = new Intl.NumberFormat('en-US', {

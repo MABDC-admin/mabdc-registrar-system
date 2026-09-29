@@ -116,12 +116,12 @@
     $enrollment   = $payment->enrollment;
     $learner      = $enrollment->learner;
     $totalAmount  = (float)($payment->amount ?? 0);
-    $vatIncl      = $totalAmount * 0.05;
-    $totalBeforeVat = $totalAmount - $vatIncl;
+    $totalBeforeVat = $totalAmount > 0 ? round($totalAmount / 1.05, 2) : 0;
+    $vatIncl      = round($totalAmount - $totalBeforeVat, 2);
 
     $totalBalance        = (float)($current_balance ?? 0);
-    $outstandingBeforeVat = $totalBalance > 0 ? $totalBalance / 1.05 : 0;
-    $outstandingVat       = $totalBalance - $outstandingBeforeVat;
+    $outstandingBeforeVat = $totalBalance > 0 ? round($totalBalance / 1.05, 2) : 0;
+    $outstandingVat       = round($totalBalance - $outstandingBeforeVat, 2);
 
     if (!function_exists('amount_to_words_pdf')) {
         function amount_to_words_pdf($amount) {
