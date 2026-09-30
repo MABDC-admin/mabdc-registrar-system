@@ -181,6 +181,9 @@ Route::middleware(['auth', 'role:registrar,admin,finance'])->group(function () {
     Route::post('/learner-accounts/{enrollment}/mark-registration-settled', [LearnerAccountController::class, 'markRegistrationSettled'])->middleware('module:learner_accounts')->name('learner-accounts.mark-registration-settled');
     Route::post('/learner-accounts/applications/{application}/settle', [LearnerAccountController::class, 'settleApplicationRegistration'])->middleware('module:learner_accounts')->name('learner-accounts.applications.settle');
     Route::get('/enrollments/{enrollment}/contract', [AdmissionController::class, 'downloadContract'])->name('enrollments.contract');
+    Route::get('/enrollments/{enrollment}/contract/edit', [AdmissionController::class, 'editContract'])->name('enrollments.contract.edit');
+    Route::match(['put', 'patch', 'post'], '/enrollments/{enrollment}/contract', [AdmissionController::class, 'updateContract'])->name('enrollments.contract.update');
+    Route::get('/enrollments/{enrollment}/contract/preview', [AdmissionController::class, 'previewContract'])->name('enrollments.contract.preview');
     Route::post('/learner-accounts/{enrollment}/toggle-mode', [LearnerAccountController::class, 'toggleMode'])->middleware('module:learner_accounts')->name('learner-accounts.toggle-mode');
     Route::put('/learner-accounts/{enrollment}/ledgers/{ledger}', [LearnerAccountController::class, 'updateLedger'])->middleware('module:learner_accounts')->name('learner-accounts.ledgers.update');
     Route::delete('/learner-accounts/{enrollment}/ledgers/{ledger}', [LearnerAccountController::class, 'destroyLedger'])->middleware('module:learner_accounts')->name('learner-accounts.ledgers.destroy');
