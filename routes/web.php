@@ -73,13 +73,13 @@ Route::middleware(['auth', 'role:registrar,admin,finance'])->group(function () {
         ->name('reports.index');
 
     Route::get('/learners', [LearnerController::class, 'index'])->name('learners.index');
-    Route::patch('/learners/{learner}/documents/{documentRequirement}', [DocumentRequirementController::class, 'update'])
+    Route::match(['put', 'patch'], '/learners/{learner}/documents/{documentRequirement}', [DocumentRequirementController::class, 'update'])
         ->name('learners.documents.update');
     Route::get('/learners/{learner}', [LearnerController::class, 'show'])->name('learners.show');
     Route::get('/learners/{learner}/edit', [LearnerController::class, 'edit'])->name('learners.edit');
-    Route::patch('/learners/{learner}', [LearnerController::class, 'update'])
+    Route::match(['put', 'patch'], '/learners/{learner}', [LearnerController::class, 'update'])
         ->middleware('module:student_management')->name('learners.update');
-    Route::patch('/learners/{learner}/disable', [LearnerController::class, 'disable'])
+    Route::match(['put', 'patch', 'post'], '/learners/{learner}/disable', [LearnerController::class, 'disable'])
         ->middleware('module:student_management')->name('learners.disable');
     Route::delete('/learners/{learner}', [LearnerController::class, 'destroy'])
         ->middleware('module:student_management')->name('learners.destroy');
@@ -99,7 +99,7 @@ Route::middleware(['auth', 'role:registrar,admin,finance'])->group(function () {
     Route::get('/admissions/create', [AdmissionController::class, 'create'])->name('admissions.create');
     Route::post('/admissions', [AdmissionController::class, 'store'])
         ->middleware('module:admission')->name('admissions.store');
-    Route::patch('/admissions/{application}/status', [AdmissionController::class, 'updateStatus'])
+    Route::match(['put', 'patch', 'post'], '/admissions/{application}/status', [AdmissionController::class, 'updateStatus'])
         ->middleware('module:admission')->name('admissions.update-status');
     Route::post('/admissions/{application}/enroll', [AdmissionController::class, 'enroll'])
         ->middleware('module:admission')->name('admissions.enroll');
@@ -107,7 +107,7 @@ Route::middleware(['auth', 'role:registrar,admin,finance'])->group(function () {
     Route::get('/classes', [SectionController::class, 'index'])->name('classes.index');
     Route::post('/classes', [SectionController::class, 'store'])
         ->middleware('module:class_section')->name('classes.store');
-    Route::patch('/classes/{section}', [SectionController::class, 'update'])
+    Route::match(['put', 'patch'], '/classes/{section}', [SectionController::class, 'update'])
         ->middleware('module:class_section')->name('classes.update');
     Route::get('/classes/{section}', [SectionController::class, 'show'])->name('classes.show');
     Route::post('/classes/{section}/assign', [SectionController::class, 'assign'])
@@ -149,7 +149,7 @@ Route::middleware(['auth', 'role:registrar,admin,finance'])->group(function () {
     Route::get('/finance/fees/create', [FeeStructureController::class, 'create'])->middleware('module:finance')->name('finance.fees.create');
     Route::post('/finance/fees', [FeeStructureController::class, 'store'])->middleware('module:finance')->name('finance.fees.store');
     Route::get('/finance/fees/{fee}/edit', [FeeStructureController::class, 'edit'])->middleware('module:finance')->name('finance.fees.edit');
-    Route::patch('/finance/fees/{feeStructure}', [FeeStructureController::class, 'update'])->middleware('module:finance')->name('finance.fees.update');
+    Route::match(['put', 'patch'], '/finance/fees/{feeStructure}', [FeeStructureController::class, 'update'])->middleware('module:finance')->name('finance.fees.update');
     Route::delete('/finance/fees/{fee}', [FeeStructureController::class, 'destroy'])->middleware('module:finance')->name('finance.fees.destroy');
     Route::post('/finance/fees/{fee}/assign', [FeeStructureController::class, 'assign'])->middleware('module:finance')->name('finance.fees.assign');
     Route::get('/finance/fees/{fee}/learners', [FeeStructureController::class, 'getLearners'])->middleware('module:finance')->name('finance.fees.learners');
@@ -177,7 +177,7 @@ Route::middleware(['auth', 'role:registrar,admin,finance'])->group(function () {
     Route::post('/learner-accounts/{enrollment}/installment', [LearnerAccountController::class, 'storeInstallmentPlan'])->middleware('module:learner_accounts')->name('learner-accounts.installment');
     Route::post('/learner-accounts/{enrollment}/email-statement', [LearnerAccountController::class, 'emailStatement'])->middleware('module:learner_accounts')->name('learner-accounts.email-statement');
     Route::get('/learner-accounts/{enrollment}/print-statement', [LearnerAccountController::class, 'printStatement'])->middleware('module:learner_accounts')->name('learner-accounts.print-statement');
-    Route::patch('/learner-accounts/{enrollment}/update-receipt-email', [LearnerAccountController::class, 'updateReceiptEmail'])->middleware('module:learner_accounts')->name('learner-accounts.update-receipt-email');
+    Route::match(['put', 'patch'], '/learner-accounts/{enrollment}/update-receipt-email', [LearnerAccountController::class, 'updateReceiptEmail'])->middleware('module:learner_accounts')->name('learner-accounts.update-receipt-email');
     Route::post('/learner-accounts/{enrollment}/mark-registration-settled', [LearnerAccountController::class, 'markRegistrationSettled'])->middleware('module:learner_accounts')->name('learner-accounts.mark-registration-settled');
     Route::post('/learner-accounts/applications/{application}/settle', [LearnerAccountController::class, 'settleApplicationRegistration'])->middleware('module:learner_accounts')->name('learner-accounts.applications.settle');
     Route::get('/enrollments/{enrollment}/contract', [AdmissionController::class, 'downloadContract'])->name('enrollments.contract');
@@ -185,7 +185,7 @@ Route::middleware(['auth', 'role:registrar,admin,finance'])->group(function () {
     Route::match(['put', 'patch', 'post'], '/enrollments/{enrollment}/contract', [AdmissionController::class, 'updateContract'])->name('enrollments.contract.update');
     Route::get('/enrollments/{enrollment}/contract/preview', [AdmissionController::class, 'previewContract'])->name('enrollments.contract.preview');
     Route::post('/learner-accounts/{enrollment}/toggle-mode', [LearnerAccountController::class, 'toggleMode'])->middleware('module:learner_accounts')->name('learner-accounts.toggle-mode');
-    Route::put('/learner-accounts/{enrollment}/ledgers/{ledger}', [LearnerAccountController::class, 'updateLedger'])->middleware('module:learner_accounts')->name('learner-accounts.ledgers.update');
+    Route::match(['put', 'patch'], '/learner-accounts/{enrollment}/ledgers/{ledger}', [LearnerAccountController::class, 'updateLedger'])->middleware('module:learner_accounts')->name('learner-accounts.ledgers.update');
     Route::delete('/learner-accounts/{enrollment}/ledgers/{ledger}', [LearnerAccountController::class, 'destroyLedger'])->middleware('module:learner_accounts')->name('learner-accounts.ledgers.destroy');
     Route::post('/receipts/{receipt}/email-account', [LearnerAccountController::class, 'emailReceipt'])->middleware('module:learner_accounts')->name('learner-accounts.receipt.email');
     Route::get('/installment-plans/{plan}', [LearnerAccountController::class, 'showInstallmentPlan'])->middleware('module:learner_accounts')->name('learner-accounts.installment.show');
@@ -201,24 +201,24 @@ Route::middleware(['auth', 'role:registrar,admin,finance'])->group(function () {
 
 Route::middleware(['auth', 'role:admin'])->group(function () {
     Route::get('/users', [UserManagementController::class, 'index'])->name('users.index');
-    Route::patch('/users/{user}/role', [UserManagementController::class, 'updateRole'])->name('users.role.update');
-    Route::patch('/roles/{role}/modules/{moduleKey}', [UserManagementController::class, 'updateModulePermission'])->name('roles.modules.toggle');
+    Route::match(['put', 'patch', 'post'], '/users/{user}/role', [UserManagementController::class, 'updateRole'])->name('users.role.update');
+    Route::match(['put', 'patch', 'post'], '/roles/{role}/modules/{moduleKey}', [UserManagementController::class, 'updateModulePermission'])->name('roles.modules.toggle');
 
     Route::get('/roles', [RoleController::class, 'index'])->name('roles.index');
     Route::post('/roles', [RoleController::class, 'store'])->name('roles.store');
-    Route::put('/roles/{role}', [RoleController::class, 'update'])->name('roles.update');
+    Route::match(['put', 'patch'], '/roles/{role}', [RoleController::class, 'update'])->name('roles.update');
     Route::delete('/roles/{role}', [RoleController::class, 'destroy'])->name('roles.destroy');
     Route::post('/users/{user}/roles', [RoleController::class, 'assignUserRoles'])->name('users.roles.assign');
 
     Route::post('/academic-years', [AcademicYearController::class, 'store'])->name('academic-years.store');
-    Route::patch('/academic-years/{academicYear}', [AcademicYearController::class, 'update'])->name('academic-years.update');
+    Route::match(['put', 'patch'], '/academic-years/{academicYear}', [AcademicYearController::class, 'update'])->name('academic-years.update');
     Route::post('/academic-years/{academicYear}/activate', [AcademicYearController::class, 'activate'])->name('academic-years.activate');
     Route::delete('/academic-years/{academicYear}', [AcademicYearController::class, 'destroy'])->name('academic-years.destroy');
 });
 
 Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
-    Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
+    Route::match(['put', 'patch'], '/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 });
 
