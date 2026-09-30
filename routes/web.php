@@ -155,9 +155,15 @@ Route::middleware(['auth', 'role:registrar,admin,finance'])->group(function () {
     Route::get('/finance/fees/{fee}/learners', [FeeStructureController::class, 'getLearners'])->middleware('module:finance')->name('finance.fees.learners');
 
     Route::get('/finance-settings', [FinanceController::class, 'settings'])->middleware('module:finance')->name('finance.settings');
+    Route::get('/batch-assessment', [FinanceController::class, 'settings'])->middleware('module:finance')->name('finance.batch-assessment');
     Route::post('/finance-settings', [FinanceController::class, 'storeSettings'])->middleware('module:finance')->name('finance.settings.store');
+    Route::post('/batch-assessment', [FinanceController::class, 'storeSettings'])->middleware('module:finance')->name('finance.batch-assessment.store');
+    Route::match(['put', 'patch'], '/finance-settings/{fee}', [FinanceController::class, 'updateSettings'])->middleware('module:finance')->name('finance.settings.update');
+    Route::match(['put', 'patch'], '/batch-assessment/{fee}', [FinanceController::class, 'updateSettings'])->middleware('module:finance')->name('finance.batch-assessment.update');
     Route::delete('/finance-settings/{fee}', [FinanceController::class, 'destroySettings'])->middleware('module:finance')->name('finance.settings.destroy');
+    Route::delete('/batch-assessment/{fee}', [FinanceController::class, 'destroySettings'])->middleware('module:finance')->name('finance.batch-assessment.destroy');
     Route::post('/finance-settings/batch-assess', [FinanceController::class, 'batchAssess'])->middleware('module:finance')->name('finance.batch-assess');
+    Route::post('/batch-assessment/assess', [FinanceController::class, 'batchAssess'])->middleware('module:finance')->name('finance.batch-assessment.assess');
 
     // Learner Accounts Routes
     Route::get('/learner-accounts', [LearnerAccountController::class, 'index'])->middleware('module:learner_accounts')->name('learner-accounts.index');
