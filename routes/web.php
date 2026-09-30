@@ -97,6 +97,7 @@ Route::middleware(['auth', 'role:registrar,admin,finance'])->group(function () {
     // Registrar Module Routes
     Route::get('/admissions', [AdmissionController::class, 'index'])->name('admissions.index');
     Route::get('/admissions/create', [AdmissionController::class, 'create'])->name('admissions.create');
+    Route::get('/admissions/lookup-learner', [AdmissionController::class, 'lookupLearner'])->name('admissions.lookup-learner');
     Route::post('/admissions', [AdmissionController::class, 'store'])
         ->middleware('module:admission')->name('admissions.store');
     Route::match(['put', 'patch', 'post'], '/admissions/{application}/status', [AdmissionController::class, 'updateStatus'])

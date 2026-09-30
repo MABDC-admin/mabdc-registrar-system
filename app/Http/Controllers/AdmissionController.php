@@ -103,10 +103,99 @@ class AdmissionController extends Controller
         ]);
     }
 
+    public function lookupLearner(Request $request)
+    {
+        $query = trim((string) $request->query('query', ''));
+        if (strlen($query) < 2) {
+            return response()->json([]);
+        }
+
+        $normalizedSearch = preg_replace('/[^A-Z0-9]+/', ' ', strtoupper($query));
+
+        $learners = Learner::query()
+            ->where(function ($q) use ($query, $normalizedSearch) {
+                $q->where('lrn', 'like', "%{$query}%")
+                  ->orWhere('full_name', 'like', "%{$query}%")
+                  ->orWhere('normalized_name', 'like', "%{$normalizedSearch}%");
+            })
+            ->with(['enrollments' => function ($q) {
+                $q->with(['academicYear:id,name', 'section:id,name'])
+                  ->orderBy('academic_year_id', 'desc')
+                  ->orderBy('id', 'desc');
+            }])
+            ->limit(10)
+            ->get();
+
+        $gradeLevels = [
+            'Nursery', 'Kinder', 'Kindergarten', 'Pre-School',
+            'L1', 'L2', 'G1', 'G2', 'G3', 'G4', 'G5', 'G6', 'G7', 'G8', 'G9', 'G10', 'G11', 'G12'
+        ];
+
+        $results = $learners->map(function ($learner) use ($gradeLevels) {
+            $latestEnrollment = $learner->enrollments->first();
+
+            $rawName = trim($learner->full_name);
+            $firstName = '';
+            $lastName = '';
+            $middleName = '';
+
+            if (str_contains($rawName, ',')) {
+                $parts = explode(',', $rawName, 2);
+                $lastName = trim($parts[0]);
+                $rest = trim($parts[1] ?? '');
+                $nameParts = preg_split('/\s+/', $rest);
+                $firstName = $nameParts[0] ?? '';
+                $middleName = count($nameParts) > 1 ? implode(' ', array_slice($nameParts, 1)) : '';
+            } else {
+                $nameParts = preg_split('/\s+/', $rawName);
+                if (count($nameParts) === 1) {
+                    $firstName = $nameParts[0];
+                } elseif (count($nameParts) === 2) {
+                    $firstName = $nameParts[0];
+                    $lastName = $nameParts[1];
+                } else {
+                    $firstName = $nameParts[0];
+                    $lastName = end($nameParts);
+                    $middleName = implode(' ', array_slice($nameParts, 1, -1));
+                }
+            }
+
+            // Next level calculation
+            $currentLevel = $latestEnrollment?->level ?? '';
+            $nextLevel = $currentLevel;
+            $idx = array_search(strtoupper($currentLevel), array_map('strtoupper', $gradeLevels));
+            if ($idx !== false && $idx < count($gradeLevels) - 1) {
+                $nextLevel = $gradeLevels[$idx + 1];
+            }
+
+            return [
+                'id' => $learner->id,
+                'lrn' => $learner->lrn,
+                'full_name' => $learner->full_name,
+                'first_name' => $firstName,
+                'last_name' => $lastName,
+                'middle_name' => $middleName,
+                'date_of_birth' => $learner->birth_date ? (is_string($learner->birth_date) ? $learner->birth_date : $learner->birth_date->format('Y-m-d')) : '',
+                'contact_number' => $learner->mother_contact_number ?: ($learner->father_contact_number ?: ''),
+                'email' => $learner->receipt_email ?: ($learner->mother_email ?: ($learner->father_email ?: '')),
+                'previous_enrollment' => $latestEnrollment ? [
+                    'academic_year' => $latestEnrollment->academicYear?->name ?? 'Previous Year',
+                    'level' => $latestEnrollment->level,
+                    'section' => $latestEnrollment->section?->name,
+                    'status' => $latestEnrollment->status,
+                    'suggested_next_level' => $nextLevel,
+                ] : null,
+            ];
+        });
+
+        return response()->json($results);
+    }
+
     public function store(Request $request): RedirectResponse
     {
         $validated = $request->validate([
             'academic_year_id' => ['required', 'exists:academic_years,id'],
+            'learner_id' => ['nullable', 'exists:learners,id'],
             'first_name' => ['required', 'string', 'max:255'],
             'last_name' => ['required', 'string', 'max:255'],
             'middle_name' => ['nullable', 'string', 'max:255'],
@@ -119,6 +208,7 @@ class AdmissionController extends Controller
 
         AdmissionApplication::create([
             'academic_year_id' => $validated['academic_year_id'],
+            'learner_id' => $validated['learner_id'] ?? null,
             'first_name' => $validated['first_name'],
             'last_name' => $validated['last_name'],
             'middle_name' => $validated['middle_name'],
