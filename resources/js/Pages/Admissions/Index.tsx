@@ -1,5 +1,5 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import { Head, Link, useForm, router, usePage } from '@inertiajs/react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
 
 type ActiveYear = {
     id: number;
@@ -34,7 +34,6 @@ type Props = {
 };
 
 export default function AdmissionsIndex({ activeYear, applications, statuses }: Props) {
-
     const handleEnroll = (applicationId: number) => {
         if (confirm('Are you sure you want to officially admit and enroll this applicant? This will generate their official Enrollment Contract PDF (2 copies), auto-send parent email, and alert the Telegram Bot.')) {
             router.post(route('admissions.enroll', applicationId));
@@ -42,40 +41,52 @@ export default function AdmissionsIndex({ activeYear, applications, statuses }: 
     };
 
     const StatusBadge = ({ status }: { status: string }) => {
-        const config = {
-            'inquiry': 'bg-slate-100 text-slate-700 border-slate-200',
-            'application_started': 'bg-blue-50 text-blue-700 border-blue-200',
-            'awaiting_downpayment': 'bg-amber-100 text-amber-900 border-amber-300 animate-pulse',
-            'for_document_review': 'bg-amber-50 text-amber-700 border-amber-200',
-            'incomplete_requirements': 'bg-rose-50 text-rose-700 border-rose-200',
-            'for_assessment': 'bg-indigo-50 text-indigo-700 border-indigo-200',
-            'approved_for_enrollment': 'bg-emerald-100 text-emerald-900 border-emerald-300 font-extrabold',
-            'registration_settled': 'bg-emerald-100 text-emerald-900 border-emerald-300 font-extrabold',
-            'waitlisted': 'bg-orange-50 text-orange-700 border-orange-200',
-            'rejected': 'bg-red-50 text-red-700 border-red-200',
-        }[status] || 'bg-slate-50 text-slate-700 border-slate-200';
-        
+        const config: Record<string, string> = {
+            'inquiry': 'bg-gray-100 text-gray-700',
+            'application_started': 'bg-blue-50 text-blue-700',
+            'awaiting_downpayment': 'bg-amber-50 text-amber-800 font-semibold',
+            'for_document_review': 'bg-amber-50 text-amber-700',
+            'incomplete_requirements': 'bg-rose-50 text-rose-700',
+            'for_assessment': 'bg-indigo-50 text-indigo-700',
+            'approved_for_enrollment': 'bg-emerald-50 text-emerald-700 font-semibold',
+            'registration_settled': 'bg-emerald-50 text-emerald-700 font-semibold',
+            'waitlisted': 'bg-orange-50 text-orange-700',
+            'rejected': 'bg-red-50 text-red-700',
+        };
+
+        const badgeClass = config[status] || 'bg-gray-100 text-gray-700';
         const label = statuses.find(s => s.value === status)?.label ?? status;
 
         return (
-            <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold border ${config}`}>
-                {status === 'awaiting_downpayment' ? '🔒 Awaiting Finance Settlement' : label}
+            <span className={`inline-flex items-center rounded-md px-2.5 py-1 text-xs font-semibold ${badgeClass}`}>
+                {status === 'awaiting_downpayment' ? 'Awaiting Settlement' : label}
             </span>
         );
     };
 
+    const pendingCount = applications.filter(a => !a.learner_id).length;
+    const awaitingDownpaymentCount = applications.filter(a => a.status === 'awaiting_downpayment' && !a.learner_id).length;
+    const readyCount = applications.filter(a => (a.status === 'approved_for_enrollment' || a.status === 'registration_settled') && !a.learner_id).length;
+
     return (
         <AuthenticatedLayout
             header={
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
                     <div>
-                        <h1 className="text-2xl font-black text-slate-900 tracking-tight">Admissions & Applications</h1>
-                        <p className="mt-1 text-sm font-medium text-slate-500">Manage prospective learners and enrollment pipeline.</p>
+                        <p className="text-sm font-medium text-gray-500">Registrar records</p>
+                        <h2 className="text-xl font-semibold leading-tight text-gray-900">
+                            Admissions & Applications
+                        </h2>
                     </div>
                     <div className="flex items-center gap-3">
-                        <Link href={route('admissions.create')} className="inline-flex h-9 items-center justify-center rounded-xl bg-[#002b80] px-4 text-xs font-black text-white shadow-xs hover:bg-[#001746] transition">
-                            <svg className="mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
-                            New Walk-in Application
+                        <div className="text-sm font-medium text-gray-500">
+                            Active year: <span className="text-gray-900">{activeYear?.name ?? 'Not configured'}</span>
+                        </div>
+                        <Link
+                            href={route('admissions.create')}
+                            className="inline-flex h-9 items-center rounded-md bg-gray-900 px-3.5 text-sm font-semibold text-white hover:bg-gray-700"
+                        >
+                            + New Walk-in
                         </Link>
                     </div>
                 </div>
@@ -83,127 +94,122 @@ export default function AdmissionsIndex({ activeYear, applications, statuses }: 
         >
             <Head title="Admissions Pipeline" />
 
-            <div className="py-8 px-4 sm:px-6 lg:px-8">
-                <div className="mx-auto w-full max-w-none">
-                    
-                    <div className="mb-6 grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-xs">
-                            <p className="text-sm font-bold text-slate-500">Total Applicants</p>
-                            <p className="text-3xl font-black text-slate-900 mt-1">{applications.filter(a => !a.learner_id).length}</p>
+            <div className="py-8">
+                <div className="mx-auto max-w-7xl space-y-5 px-4 sm:px-6 lg:px-8">
+                    {/* Summary cards */}
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                        <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+                            <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Total Applicants</p>
+                            <p className="mt-1 text-2xl font-semibold text-gray-900">{pendingCount}</p>
                         </div>
-                        <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-xs border-l-4 border-l-amber-500">
-                            <p className="text-sm font-bold text-slate-500">🔒 Awaiting Finance Settlement</p>
-                            <p className="text-3xl font-black text-amber-600 mt-1">{applications.filter(a => a.status === 'awaiting_downpayment' && !a.learner_id).length}</p>
+                        <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+                            <p className="text-xs font-semibold uppercase tracking-wide text-amber-700">Awaiting Downpayment</p>
+                            <p className="mt-1 text-2xl font-semibold text-amber-700">{awaitingDownpaymentCount}</p>
                         </div>
-                        <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-xs border-l-4 border-l-emerald-500">
-                            <p className="text-sm font-bold text-slate-500">✓ Settled & Ready for Registrar</p>
-                            <p className="text-3xl font-black text-emerald-600 mt-1">{applications.filter(a => (a.status === 'approved_for_enrollment' || a.status === 'registration_settled') && !a.learner_id).length}</p>
+                        <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+                            <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">Settled & Ready to Admit</p>
+                            <p className="mt-1 text-2xl font-semibold text-emerald-700">{readyCount}</p>
                         </div>
                     </div>
 
-                    <div className="bg-white rounded-xl shadow-xs border border-slate-200 overflow-hidden">
+                    <section className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
+                        <div className="flex flex-col gap-3 border-b border-gray-200 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+                            <div>
+                                <h3 className="text-base font-semibold text-gray-900">
+                                    Admissions pipeline
+                                </h3>
+                                <p className="mt-1 text-sm text-gray-500">
+                                    Showing {applications.length} applicant records
+                                </p>
+                            </div>
+                        </div>
+
                         <div className="overflow-x-auto">
-                            <table className="min-w-full divide-y divide-slate-200">
-                                <thead className="bg-[#002b80]">
+                            <table className="min-w-full divide-y divide-gray-200">
+                                <thead className="bg-gray-50">
                                     <tr>
-                                        <th scope="col" className="px-6 py-4 text-left text-xs font-bold text-white uppercase tracking-wider">Applicant Name</th>
-                                        <th scope="col" className="px-6 py-4 text-left text-xs font-bold text-white uppercase tracking-wider">Contact Details</th>
-                                        <th scope="col" className="px-6 py-4 text-left text-xs font-bold text-white uppercase tracking-wider">Grade Level</th>
-                                        <th scope="col" className="px-6 py-4 text-left text-xs font-bold text-white uppercase tracking-wider">Approval & Settlement Status</th>
-                                        <th scope="col" className="px-6 py-4 text-right text-xs font-bold text-white uppercase tracking-wider">Registrar Action</th>
+                                        <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Applicant</th>
+                                        <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Grade Level</th>
+                                        <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Contacts</th>
+                                        <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Status</th>
+                                        <th className="px-5 py-3 text-right text-xs font-semibold uppercase tracking-wide text-gray-500">Action</th>
                                     </tr>
                                 </thead>
-                                <tbody className="bg-white divide-y divide-slate-200">
+                                <tbody className="divide-y divide-gray-200 bg-white">
                                     {applications.map((app) => {
-                                        const firstInitial = (app.first_name || 'A')[0] || 'A';
-                                        const lastInitial = (app.last_name || 'P')[0] || 'P';
                                         const displayName = app.full_name || `${app.first_name || ''} ${app.last_name || ''}`.trim() || `Applicant #${app.id}`;
                                         const isFinanceOrAdmin = (usePage().props.auth.user.role === 'finance' || usePage().props.auth.user.role === 'admin');
 
                                         return (
-                                            <tr key={app.id} className={`hover:bg-slate-50 transition-colors ${app.learner_id ? 'opacity-60 bg-slate-50/50' : ''}`}>
-                                                <td className="px-6 py-4 whitespace-nowrap">
-                                                    <div className="flex items-center">
-                                                        <div className="h-10 w-10 flex-shrink-0 rounded-full bg-[#002b80]/10 flex items-center justify-center font-black text-[#002b80] text-sm border border-[#002b80]/20">
-                                                            {firstInitial}{lastInitial}
-                                                        </div>
-                                                        <div className="ml-4">
-                                                            <div className="text-sm font-extrabold text-slate-900">{displayName}</div>
-                                                            <div className="text-xs text-slate-500 font-semibold">{(app.classification || 'NEW').toUpperCase()} • App #{app.id}</div>
-                                                        </div>
-                                                    </div>
+                                            <tr key={app.id} className={`hover:bg-gray-50 ${app.learner_id ? 'opacity-60 bg-gray-50/50' : ''}`}>
+                                                <td className="whitespace-nowrap px-5 py-4">
+                                                    <span className="font-semibold text-gray-900">{displayName}</span>
+                                                    <p className="mt-1 text-xs text-gray-500">
+                                                        {(app.classification || 'NEW').toUpperCase()} · App #{app.id}
+                                                    </p>
                                                 </td>
-                                                <td className="px-6 py-4 whitespace-nowrap">
-                                                    <div className="text-sm font-semibold text-slate-700">{app.contact_number ?? 'No phone'}</div>
-                                                    <div className="text-xs text-slate-500">{app.email ?? 'No email'}</div>
+                                                <td className="whitespace-nowrap px-5 py-4 text-sm text-gray-700">
+                                                    <span className="font-semibold">{app.level_applied_for ?? 'Unassigned'}</span>
                                                 </td>
-                                                <td className="px-6 py-4 whitespace-nowrap">
-                                                    <span className="text-sm font-bold text-slate-700">{app.level_applied_for ?? 'Unassigned'}</span>
+                                                <td className="whitespace-nowrap px-5 py-4 text-sm text-gray-700">
+                                                    <p>{app.contact_number ?? 'No phone'}</p>
+                                                    <p className="mt-1 text-xs text-gray-500">{app.email ?? 'No email'}</p>
                                                 </td>
-                                                <td className="px-6 py-4 whitespace-nowrap">
+                                                <td className="whitespace-nowrap px-5 py-4">
                                                     {app.learner_id ? (
-                                                        <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold border bg-slate-800 text-white border-slate-900">
+                                                        <span className="inline-flex items-center rounded-md bg-gray-900 px-2.5 py-1 text-xs font-semibold text-white">
                                                             Enrolled Student
                                                         </span>
                                                     ) : (
                                                         <StatusBadge status={app.status} />
                                                     )}
                                                 </td>
-                                                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                                <td className="whitespace-nowrap px-5 py-4 text-right text-sm">
                                                     {app.learner_id ? (
-                                                        <Link href={route('learners.show', app.learner_id)} className="text-[#002b80] hover:underline font-bold text-xs">
+                                                        <Link href={route('learners.show', app.learner_id)} className="font-semibold text-indigo-600 hover:text-indigo-900">
                                                             View Profile &rarr;
                                                         </Link>
                                                     ) : (
                                                         (app.status === 'approved_for_enrollment' || app.status === 'registration_settled') ? (
-                                                            <button 
+                                                            <button
                                                                 onClick={() => handleEnroll(app.id)}
-                                                                className="inline-flex items-center px-3.5 py-2 border border-transparent text-xs font-black rounded-xl shadow-xs text-white bg-[#002b80] hover:bg-[#001746] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#002b80] transition"
+                                                                className="inline-flex items-center rounded-md bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2"
                                                             >
                                                                 ✓ Admit & Generate Contract
                                                             </button>
                                                         ) : isFinanceOrAdmin ? (
-                                                            <button 
+                                                            <button
                                                                 onClick={() => {
-                                                                    if (confirm(`Mark ₱500 registration settled for ${displayName}?`)) {
+                                                                    if (confirm(`Mark AED 500 registration settled for ${displayName}?`)) {
                                                                         router.post(route('learner-accounts.applications.settle', app.id));
                                                                     }
                                                                 }}
-                                                                className="inline-flex items-center px-3.5 py-2 border border-transparent text-xs font-black rounded-xl shadow-xs text-[#001746] bg-[#ffc000] hover:bg-[#ffe066] transition"
+                                                                className="inline-flex items-center rounded-md bg-amber-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-amber-600"
                                                             >
-                                                                ✓ Settle ₱500 Registration
+                                                                ✓ Settle Downpayment
                                                             </button>
                                                         ) : (
-                                                            <button 
-                                                                disabled
-                                                                title="Finance must mark Registration as Settled before Registrar can admit learner"
-                                                                className="inline-flex items-center px-3.5 py-2 border border-slate-200 text-xs font-bold rounded-xl text-slate-400 bg-slate-100 cursor-not-allowed"
-                                                            >
-                                                                🔒 Awaiting Finance Settlement
-                                                            </button>
+                                                            <span className="text-xs text-gray-400 italic">
+                                                                Awaiting Downpayment
+                                                            </span>
                                                         )
                                                     )}
                                                 </td>
                                             </tr>
                                         );
                                     })}
-                                    
+
                                     {applications.length === 0 && (
                                         <tr>
-                                            <td colSpan={5} className="px-6 py-12 text-center">
-                                                <svg className="mx-auto h-12 w-12 text-slate-300 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                                                </svg>
-                                                <h3 className="text-sm font-black text-slate-900">No applications found</h3>
-                                                <p className="mt-1 text-sm text-slate-500">New registered applicants will appear here.</p>
+                                            <td colSpan={5} className="px-5 py-10 text-center text-sm text-gray-500">
+                                                No applicant records found.
                                             </td>
                                         </tr>
                                     )}
                                 </tbody>
                             </table>
                         </div>
-                    </div>
-
+                    </section>
                 </div>
             </div>
         </AuthenticatedLayout>

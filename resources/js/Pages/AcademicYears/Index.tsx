@@ -1,8 +1,7 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import FinanceLayout from '@/Layouts/FinanceLayout';
 import { Head, useForm, usePage } from '@inertiajs/react';
-import { FormEventHandler, useState, useEffect } from 'react';
-import { Transition } from '@headlessui/react';
+import { FormEventHandler, useEffect, useState } from 'react';
 import Modal from '@/Components/Modal';
 import InputLabel from '@/Components/InputLabel';
 import TextInput from '@/Components/TextInput';
@@ -24,7 +23,7 @@ type Props = {
 
 export default function AcademicYearsIndex({ academicYears }: Props) {
     const { auth } = usePage().props as any;
-    const isFinance = auth.user.role === 'finance';
+    const isFinance = auth?.user?.role === 'finance';
     const Layout = isFinance ? FinanceLayout : AuthenticatedLayout;
 
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -34,52 +33,54 @@ export default function AcademicYearsIndex({ academicYears }: Props) {
     return (
         <Layout
             header={
-                <div className="flex flex-col gap-1 py-1">
-                    <p className="text-sm font-bold uppercase tracking-widest text-emerald-600">
-                        Administration
-                    </p>
-                    <div className="flex justify-between items-center">
-                        <h2 className="text-3xl font-black text-slate-900 leading-tight">
+                <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+                    <div>
+                        <p className="text-sm font-medium text-gray-500">
+                            Academic terms configuration
+                        </p>
+                        <h2 className="text-xl font-semibold leading-tight text-gray-900">
                             Academic Years
                         </h2>
-                        <button
-                            onClick={() => setIsCreateModalOpen(true)}
-                            className="inline-flex h-10 items-center justify-center rounded-xl bg-emerald-600 px-5 text-sm font-black text-white shadow-sm transition hover:bg-emerald-500 hover:shadow"
-                        >
-                            + Add New Year
-                        </button>
                     </div>
+                    <button
+                        onClick={() => setIsCreateModalOpen(true)}
+                        className="inline-flex h-9 items-center rounded-md bg-gray-900 px-4 text-sm font-semibold text-white hover:bg-gray-700"
+                    >
+                        + Add Academic Year
+                    </button>
                 </div>
             }
         >
             <Head title="Academic Years Management" />
 
-            <div className="py-8 bg-slate-50 min-h-[calc(100vh-81px)]">
-                <div className="w-full max-w-none mx-auto px-4 sm:px-6 lg:px-8">
-                    
-                    <div className="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
-                        <div className="border-b border-slate-200 px-8 py-6 bg-white flex justify-between items-center">
+            <div className="py-8">
+                <div className="mx-auto max-w-7xl space-y-5 px-4 sm:px-6 lg:px-8">
+                    {/* Table Card */}
+                    <section className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
+                        <div className="flex flex-col gap-2 border-b border-gray-200 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
                             <div>
-                                <h3 className="text-lg font-black text-slate-900">
-                                    School Years
+                                <h3 className="text-base font-semibold text-gray-900">
+                                    School Year Calendars
                                 </h3>
-                                <p className="mt-1 text-sm font-medium text-slate-500">
-                                    Manage academic calendars and set the active school year.
+                                <p className="mt-1 text-sm text-gray-500">
+                                    Configure active terms, operational dates, and term roll-forward statuses.
                                 </p>
                             </div>
                         </div>
 
                         <div className="overflow-x-auto">
-                            <table className="w-full text-left border-collapse">
-                                <thead className="bg-[#002b80] text-white">
-                                    <tr className="text-left text-xs font-bold uppercase tracking-wider">
-                                        <th className="px-8 py-4">Academic Year</th>
-                                        <th className="px-8 py-4">Duration</th>
-                                        <th className="px-8 py-4">Status</th>
-                                        <th className="px-8 py-4 text-right">Actions</th>
+                            <table className="min-w-full divide-y divide-gray-200">
+                                <thead className="bg-gray-50">
+                                    <tr>
+                                        <HeaderCell>School Year</HeaderCell>
+                                        <HeaderCell>Calendar Duration</HeaderCell>
+                                        <HeaderCell>Status</HeaderCell>
+                                        <th className="px-5 py-3 text-right text-xs font-semibold uppercase tracking-wide text-gray-500">
+                                            Actions
+                                        </th>
                                     </tr>
                                 </thead>
-                                <tbody className="divide-y divide-slate-200 bg-white">
+                                <tbody className="divide-y divide-gray-200 bg-white">
                                     {academicYears.map((year) => (
                                         <AcademicYearRow
                                             key={year.id}
@@ -90,16 +91,18 @@ export default function AcademicYearsIndex({ academicYears }: Props) {
                                     ))}
                                     {academicYears.length === 0 && (
                                         <tr>
-                                            <td colSpan={4} className="px-8 py-12 text-center text-slate-500 font-medium">
-                                                No academic years found.
+                                            <td
+                                                colSpan={4}
+                                                className="px-5 py-10 text-center text-sm text-gray-500"
+                                            >
+                                                No academic years configured yet.
                                             </td>
                                         </tr>
                                     )}
                                 </tbody>
                             </table>
                         </div>
-                    </div>
-
+                    </section>
                 </div>
             </div>
 
@@ -139,81 +142,84 @@ function AcademicYearRow({
     };
 
     return (
-        <tr className="transition hover:bg-slate-50/50 group">
-            <td className="px-8 py-5">
-                <div className="flex items-center gap-4">
-                    <div className={`flex h-12 w-12 items-center justify-center rounded-2xl text-lg font-black shadow-inner shrink-0 ${year.is_active ? 'bg-gradient-to-br from-emerald-100 to-emerald-200 text-emerald-800' : 'bg-slate-100 text-slate-500'}`}>
-                        {year.name.substring(0, 4)}
-                    </div>
-                    <div>
-                        <p className="font-black text-slate-900 text-base">{year.name}</p>
-                    </div>
-                </div>
+        <tr className="hover:bg-gray-50">
+            <td className="whitespace-nowrap px-5 py-4">
+                <span className="font-semibold text-gray-900">
+                    {year.name}
+                </span>
             </td>
-            <td className="px-8 py-5">
-                <div className="text-sm font-semibold text-slate-700">
-                    {year.starts_on ? new Date(year.starts_on).toLocaleDateString() : 'N/A'} 
-                    {' - '} 
-                    {year.ends_on ? new Date(year.ends_on).toLocaleDateString() : 'N/A'}
-                </div>
+            <td className="whitespace-nowrap px-5 py-4 text-sm text-gray-700">
+                {year.starts_on
+                    ? new Date(year.starts_on).toLocaleDateString()
+                    : 'Not set'}{' '}
+                —{' '}
+                {year.ends_on
+                    ? new Date(year.ends_on).toLocaleDateString()
+                    : 'Not set'}
             </td>
-            <td className="px-8 py-5">
+            <td className="whitespace-nowrap px-5 py-4">
                 {year.is_active ? (
-                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-100 text-emerald-700 text-xs font-black uppercase tracking-wider border border-emerald-200">
-                        <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                    <span className="inline-flex items-center rounded-md bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
                         Active Year
                     </span>
                 ) : (
-                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-100 text-slate-600 text-xs font-black uppercase tracking-wider border border-slate-200">
+                    <span className="inline-flex items-center rounded-md bg-gray-100 px-2.5 py-1 text-xs font-semibold text-gray-600">
                         Inactive
                     </span>
                 )}
             </td>
-            <td className="px-8 py-5 align-top text-right">
-                <div className="flex justify-end gap-2 pt-1">
+            <td className="whitespace-nowrap px-5 py-4 text-right text-sm font-medium">
+                <div className="flex justify-end items-center gap-2">
                     {!year.is_active && (
                         <button
                             onClick={activate}
                             disabled={processing}
-                            className="inline-flex h-10 items-center justify-center rounded-xl bg-emerald-50 border border-emerald-200 px-4 text-sm font-bold text-emerald-700 shadow-sm transition hover:bg-emerald-100 hover:border-emerald-300 disabled:opacity-50"
+                            className="rounded-md border border-gray-300 bg-white px-3 py-1 text-xs font-semibold text-emerald-700 hover:bg-emerald-50 disabled:opacity-40"
                         >
-                            {processing ? 'Activating...' : 'Set Active'}
+                            Set Active
                         </button>
                     )}
-                    
                     <button
                         onClick={onEdit}
-                        className="inline-flex h-10 items-center justify-center rounded-xl bg-white border border-slate-200 px-4 text-sm font-bold text-slate-700 shadow-sm transition hover:bg-slate-50 hover:border-slate-300"
+                        className="rounded-md border border-gray-300 bg-white px-3 py-1 text-xs font-semibold text-gray-700 hover:bg-gray-50"
                     >
                         Edit
                     </button>
-                    
-                    <button
-                        onClick={onDelete}
-                        disabled={year.is_active}
-                        className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-white border border-red-200 text-red-600 shadow-sm transition hover:bg-red-50 hover:border-red-300 disabled:opacity-30 disabled:cursor-not-allowed"
-                        title={year.is_active ? "Cannot delete active year" : "Delete Year"}
-                    >
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
-                            <path strokeLinecap="round" strokeLinejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
-                        </svg>
-                    </button>
+                    {!year.is_active && (
+                        <button
+                            onClick={onDelete}
+                            className="rounded-md border border-rose-200 bg-white px-3 py-1 text-xs font-semibold text-rose-600 hover:bg-rose-50"
+                        >
+                            Delete
+                        </button>
+                    )}
                 </div>
             </td>
         </tr>
     );
 }
 
-// -------------------------------------------------------------
-// Modals
-// -------------------------------------------------------------
+function HeaderCell({ children }: { children: React.ReactNode }) {
+    return (
+        <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+            {children}
+        </th>
+    );
+}
 
-function CreateYearModal({ show, onClose }: { show: boolean, onClose: () => void }) {
-    const { data, setData, post, processing, errors, reset, clearErrors } = useForm({
-        name: '',
-        starts_on: '',
-        ends_on: '',
-    });
+function CreateYearModal({
+    show,
+    onClose,
+}: {
+    show: boolean;
+    onClose: () => void;
+}) {
+    const { data, setData, post, processing, errors, reset, clearErrors } =
+        useForm({
+            name: '',
+            starts_on: '',
+            ends_on: '',
+        });
 
     const submit: FormEventHandler = (e) => {
         e.preventDefault();
@@ -234,58 +240,72 @@ function CreateYearModal({ show, onClose }: { show: boolean, onClose: () => void
     return (
         <Modal show={show} onClose={handleClose} maxWidth="md">
             <form onSubmit={submit} className="p-6">
-                <h2 className="text-lg font-black text-slate-900">Add Academic Year</h2>
-                <p className="mt-1 text-sm text-slate-500">
-                    Create a new school year block. (e.g. 2026-2027)
-                </p>
+                <h2 className="text-base font-semibold text-gray-900 mb-4">
+                    Add Academic Year
+                </h2>
 
-                <div className="mt-6 space-y-4">
+                <div className="space-y-4">
                     <div>
-                        <InputLabel htmlFor="create_name" value="Name (YYYY-YYYY)" />
+                        <InputLabel
+                            htmlFor="create_name"
+                            value="Year Name (e.g. 2026-2027)"
+                        />
                         <TextInput
                             id="create_name"
                             placeholder="2026-2027"
-                            className="mt-1 block w-full"
+                            className="mt-1 block w-full text-sm"
                             value={data.name}
                             onChange={(e) => setData('name', e.target.value)}
                             required
                         />
-                        <InputError className="mt-2" message={errors.name} />
+                        <InputError className="mt-1" message={errors.name} />
                     </div>
 
-                    <div>
-                        <InputLabel htmlFor="create_starts_on" value="Start Date (Optional)" />
-                        <TextInput
-                            id="create_starts_on"
-                            type="date"
-                            className="mt-1 block w-full"
-                            value={data.starts_on}
-                            onChange={(e) => setData('starts_on', e.target.value)}
-                        />
-                        <InputError className="mt-2" message={errors.starts_on} />
-                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                        <div>
+                            <InputLabel
+                                htmlFor="create_starts_on"
+                                value="Start Date"
+                            />
+                            <TextInput
+                                id="create_starts_on"
+                                type="date"
+                                className="mt-1 block w-full text-sm"
+                                value={data.starts_on}
+                                onChange={(e) =>
+                                    setData('starts_on', e.target.value)
+                                }
+                            />
+                        </div>
 
-                    <div>
-                        <InputLabel htmlFor="create_ends_on" value="End Date (Optional)" />
-                        <TextInput
-                            id="create_ends_on"
-                            type="date"
-                            className="mt-1 block w-full"
-                            value={data.ends_on}
-                            onChange={(e) => setData('ends_on', e.target.value)}
-                        />
-                        <InputError className="mt-2" message={errors.ends_on} />
+                        <div>
+                            <InputLabel
+                                htmlFor="create_ends_on"
+                                value="End Date"
+                            />
+                            <TextInput
+                                id="create_ends_on"
+                                type="date"
+                                className="mt-1 block w-full text-sm"
+                                value={data.ends_on}
+                                onChange={(e) =>
+                                    setData('ends_on', e.target.value)
+                                }
+                            />
+                        </div>
                     </div>
                 </div>
 
                 <div className="mt-6 flex justify-end gap-3">
-                    <SecondaryButton onClick={handleClose}>Cancel</SecondaryButton>
+                    <SecondaryButton onClick={handleClose}>
+                        Cancel
+                    </SecondaryButton>
                     <button
                         type="submit"
                         disabled={processing}
-                        className="inline-flex items-center rounded-md border border-transparent bg-emerald-600 px-4 py-2 text-xs font-semibold uppercase tracking-widest text-white transition hover:bg-emerald-500 focus:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 disabled:opacity-50"
+                        className="inline-flex h-9 items-center rounded-md bg-gray-900 px-4 text-sm font-semibold text-white hover:bg-gray-700 disabled:opacity-40"
                     >
-                        {processing ? 'Creating...' : 'Create Year'}
+                        Create Year
                     </button>
                 </div>
             </form>
@@ -293,19 +313,30 @@ function CreateYearModal({ show, onClose }: { show: boolean, onClose: () => void
     );
 }
 
-function EditYearModal({ year, onClose }: { year: AcademicYear | null, onClose: () => void }) {
-    const { data, setData, patch, processing, errors, reset, clearErrors } = useForm({
-        name: '',
-        starts_on: '',
-        ends_on: '',
-    });
+function EditYearModal({
+    year,
+    onClose,
+}: {
+    year: AcademicYear | null;
+    onClose: () => void;
+}) {
+    const { data, setData, patch, processing, errors, reset, clearErrors } =
+        useForm({
+            name: '',
+            starts_on: '',
+            ends_on: '',
+        });
 
     useEffect(() => {
         if (year) {
             setData({
                 name: year.name,
-                starts_on: year.starts_on ? new Date(year.starts_on).toISOString().split('T')[0] : '',
-                ends_on: year.ends_on ? new Date(year.ends_on).toISOString().split('T')[0] : '',
+                starts_on: year.starts_on
+                    ? new Date(year.starts_on).toISOString().split('T')[0]
+                    : '',
+                ends_on: year.ends_on
+                    ? new Date(year.ends_on).toISOString().split('T')[0]
+                    : '',
             });
         }
     }, [year]);
@@ -313,7 +344,7 @@ function EditYearModal({ year, onClose }: { year: AcademicYear | null, onClose: 
     const submit: FormEventHandler = (e) => {
         e.preventDefault();
         if (!year) return;
-        
+
         patch(route('academic-years.update', year.id), {
             onSuccess: () => {
                 reset();
@@ -331,57 +362,71 @@ function EditYearModal({ year, onClose }: { year: AcademicYear | null, onClose: 
     return (
         <Modal show={!!year} onClose={handleClose} maxWidth="md">
             <form onSubmit={submit} className="p-6">
-                <h2 className="text-lg font-black text-slate-900">Edit Academic Year</h2>
-                <p className="mt-1 text-sm text-slate-500">
-                    Update details for {year?.name}.
-                </p>
+                <h2 className="text-base font-semibold text-gray-900 mb-4">
+                    Edit Academic Year
+                </h2>
 
-                <div className="mt-6 space-y-4">
+                <div className="space-y-4">
                     <div>
-                        <InputLabel htmlFor="edit_name" value="Name (YYYY-YYYY)" />
+                        <InputLabel
+                            htmlFor="edit_name"
+                            value="Year Name"
+                        />
                         <TextInput
                             id="edit_name"
-                            className="mt-1 block w-full"
+                            className="mt-1 block w-full text-sm"
                             value={data.name}
                             onChange={(e) => setData('name', e.target.value)}
                             required
                         />
-                        <InputError className="mt-2" message={errors.name} />
+                        <InputError className="mt-1" message={errors.name} />
                     </div>
 
-                    <div>
-                        <InputLabel htmlFor="edit_starts_on" value="Start Date" />
-                        <TextInput
-                            id="edit_starts_on"
-                            type="date"
-                            className="mt-1 block w-full"
-                            value={data.starts_on}
-                            onChange={(e) => setData('starts_on', e.target.value)}
-                        />
-                        <InputError className="mt-2" message={errors.starts_on} />
-                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                        <div>
+                            <InputLabel
+                                htmlFor="edit_starts_on"
+                                value="Start Date"
+                            />
+                            <TextInput
+                                id="edit_starts_on"
+                                type="date"
+                                className="mt-1 block w-full text-sm"
+                                value={data.starts_on}
+                                onChange={(e) =>
+                                    setData('starts_on', e.target.value)
+                                }
+                            />
+                        </div>
 
-                    <div>
-                        <InputLabel htmlFor="edit_ends_on" value="End Date" />
-                        <TextInput
-                            id="edit_ends_on"
-                            type="date"
-                            className="mt-1 block w-full"
-                            value={data.ends_on}
-                            onChange={(e) => setData('ends_on', e.target.value)}
-                        />
-                        <InputError className="mt-2" message={errors.ends_on} />
+                        <div>
+                            <InputLabel
+                                htmlFor="edit_ends_on"
+                                value="End Date"
+                            />
+                            <TextInput
+                                id="edit_ends_on"
+                                type="date"
+                                className="mt-1 block w-full text-sm"
+                                value={data.ends_on}
+                                onChange={(e) =>
+                                    setData('ends_on', e.target.value)
+                                }
+                            />
+                        </div>
                     </div>
                 </div>
 
                 <div className="mt-6 flex justify-end gap-3">
-                    <SecondaryButton onClick={handleClose}>Cancel</SecondaryButton>
+                    <SecondaryButton onClick={handleClose}>
+                        Cancel
+                    </SecondaryButton>
                     <button
                         type="submit"
                         disabled={processing}
-                        className="inline-flex items-center rounded-md border border-transparent bg-emerald-600 px-4 py-2 text-xs font-semibold uppercase tracking-widest text-white transition hover:bg-emerald-500 focus:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 disabled:opacity-50"
+                        className="inline-flex h-9 items-center rounded-md bg-gray-900 px-4 text-sm font-semibold text-white hover:bg-gray-700 disabled:opacity-40"
                     >
-                        {processing ? 'Saving...' : 'Save Changes'}
+                        Save Changes
                     </button>
                 </div>
             </form>
@@ -389,13 +434,19 @@ function EditYearModal({ year, onClose }: { year: AcademicYear | null, onClose: 
     );
 }
 
-function DeleteYearModal({ year, onClose }: { year: AcademicYear | null, onClose: () => void }) {
+function DeleteYearModal({
+    year,
+    onClose,
+}: {
+    year: AcademicYear | null;
+    onClose: () => void;
+}) {
     const { delete: destroy, processing, errors, clearErrors } = useForm();
 
     const submit: FormEventHandler = (e) => {
         e.preventDefault();
         if (!year) return;
-        
+
         destroy(route('academic-years.destroy', year.id), {
             onSuccess: () => onClose(),
         });
@@ -409,37 +460,31 @@ function DeleteYearModal({ year, onClose }: { year: AcademicYear | null, onClose
     return (
         <Modal show={!!year} onClose={handleClose} maxWidth="sm">
             <form onSubmit={submit} className="p-6">
-                <div className="flex items-center gap-4">
-                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-red-100 sm:mx-0 sm:h-10 sm:w-10">
-                        <svg className="h-6 w-6 text-red-600" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                        </svg>
+                <h2 className="text-base font-semibold text-gray-900 mb-2">
+                    Delete Academic Year
+                </h2>
+                <p className="text-sm text-gray-500">
+                    Are you sure you want to delete <strong>{year?.name}</strong>? This action cannot be undone.
+                </p>
+
+                {(errors as any).message && (
+                    <div className="mt-3 p-3 bg-rose-50 border border-rose-200 rounded-md">
+                        <p className="text-xs font-semibold text-rose-700">
+                            {(errors as any).message}
+                        </p>
                     </div>
-                    <div>
-                        <h2 className="text-lg font-black text-slate-900">Delete Academic Year</h2>
-                    </div>
-                </div>
-                
-                <div className="mt-4">
-                    <p className="text-sm text-slate-500">
-                        Are you sure you want to delete the academic year <strong>{year?.name}</strong>? This action cannot be undone.
-                    </p>
-                    
-                    {(errors as any).message && (
-                        <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-md">
-                            <p className="text-sm font-bold text-red-600">{(errors as any).message}</p>
-                        </div>
-                    )}
-                </div>
+                )}
 
                 <div className="mt-6 flex justify-end gap-3">
-                    <SecondaryButton onClick={handleClose}>Cancel</SecondaryButton>
+                    <SecondaryButton onClick={handleClose}>
+                        Cancel
+                    </SecondaryButton>
                     <button
                         type="submit"
                         disabled={processing}
-                        className="inline-flex items-center rounded-md border border-transparent bg-red-600 px-4 py-2 text-xs font-semibold uppercase tracking-widest text-white transition hover:bg-red-500 focus:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 disabled:opacity-50"
+                        className="inline-flex h-9 items-center rounded-md bg-rose-600 px-4 text-sm font-semibold text-white hover:bg-rose-700 disabled:opacity-40"
                     >
-                        {processing ? 'Deleting...' : 'Delete Year'}
+                        Delete Year
                     </button>
                 </div>
             </form>

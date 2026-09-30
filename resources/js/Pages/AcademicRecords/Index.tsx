@@ -1,8 +1,6 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, Link, router } from '@inertiajs/react';
 import { useState } from 'react';
-import PrimaryButton from '@/Components/PrimaryButton';
-import SecondaryButton from '@/Components/SecondaryButton';
 
 type Learner = {
     id: number;
@@ -26,8 +24,8 @@ type Props = {
     learners: {
         data: Learner[];
         links: PaginationLink[];
-        from: number;
-        to: number;
+        from: number | null;
+        to: number | null;
         total: number;
     };
     levels: string[];
@@ -37,146 +35,235 @@ type Props = {
     };
 };
 
-export default function AcademicRecordsIndex({ activeYear, learners, levels, filters }: Props) {
+export default function AcademicRecordsIndex({
+    activeYear,
+    learners,
+    levels,
+    filters,
+}: Props) {
     const [search, setSearch] = useState(filters.search || '');
     const [level, setLevel] = useState(filters.level || '');
 
     const handleSearch = (e: React.FormEvent) => {
         e.preventDefault();
-        router.get(route('academic-records.index'), { search, level }, { preserveState: true });
+        router.get(
+            route('academic-records.index'),
+            { search, level },
+            { preserveState: true },
+        );
     };
 
-    const handleLevelChange = (newLevel: string) => {
-        setLevel(newLevel);
-        router.get(route('academic-records.index'), { search, level: newLevel }, { preserveState: true });
+    const clearFilters = () => {
+        setSearch('');
+        setLevel('');
+        router.get(route('academic-records.index'), {}, { replace: true });
     };
 
     return (
         <AuthenticatedLayout
             header={
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
                     <div>
-                        <h1 className="text-2xl font-black text-slate-900 tracking-tight">Academic Records</h1>
-                        <p className="mt-1 text-sm font-medium text-slate-500">
-                            {activeYear ? `Manage grades and report cards for ${activeYear.name}` : 'No active academic year found'}
+                        <p className="text-sm font-medium text-gray-500">
+                            Grades &amp; transcripts
                         </p>
+                        <h2 className="text-xl font-semibold leading-tight text-gray-900">
+                            Academic Records
+                        </h2>
+                    </div>
+                    <div className="text-sm font-medium text-gray-500">
+                        Active year:{' '}
+                        <span className="font-semibold text-gray-900">
+                            {activeYear?.name ?? 'Not configured'}
+                        </span>
                     </div>
                 </div>
             }
         >
             <Head title="Academic Records" />
 
-            <div className="py-8 px-4 sm:px-6 lg:px-8">
-                <div className="mx-auto w-full max-w-none">
-                    
-                    {/* Filters */}
-                    <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden mb-6 p-4">
-                        <form onSubmit={handleSearch} className="flex flex-col sm:flex-row gap-4">
-                            <div className="flex-1">
-                                <input
-                                    type="text"
-                                    placeholder="Search by Learner Name or LRN..."
-                                    className="w-full border-slate-300 focus:border-emerald-500 focus:ring-emerald-500 rounded-lg shadow-sm"
-                                    value={search}
-                                    onChange={e => setSearch(e.target.value)}
-                                />
-                            </div>
-                            <div className="sm:w-48">
-                                <select
-                                    className="w-full border-slate-300 focus:border-emerald-500 focus:ring-emerald-500 rounded-lg shadow-sm"
-                                    value={level}
-                                    onChange={e => handleLevelChange(e.target.value)}
-                                >
-                                    <option value="">All Levels</option>
-                                    {levels.map(l => (
-                                        <option key={l} value={l}>{l}</option>
-                                    ))}
-                                </select>
-                            </div>
+            <div className="py-8">
+                <div className="mx-auto max-w-7xl space-y-5 px-4 sm:px-6 lg:px-8">
+                    {/* Filters Form */}
+                    <form
+                        onSubmit={handleSearch}
+                        className="grid gap-3 rounded-lg border border-gray-200 bg-white p-4 shadow-sm lg:grid-cols-[1fr_220px_auto]"
+                    >
+                        <label className="block">
+                            <span className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                                Search Learner
+                            </span>
+                            <input
+                                type="text"
+                                placeholder="Name or LRN"
+                                className="mt-1 block w-full rounded-md border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                value={search}
+                                onChange={(e) => setSearch(e.target.value)}
+                            />
+                        </label>
+
+                        <label className="block">
+                            <span className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                                Grade Level
+                            </span>
+                            <select
+                                className="mt-1 block w-full rounded-md border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                value={level}
+                                onChange={(e) => setLevel(e.target.value)}
+                            >
+                                <option value="">All levels</option>
+                                {levels.map((l) => (
+                                    <option key={l} value={l}>
+                                        {l}
+                                    </option>
+                                ))}
+                            </select>
+                        </label>
+
+                        <div className="flex items-end gap-2">
+                            <button
+                                type="submit"
+                                className="inline-flex h-10 items-center rounded-md bg-gray-900 px-4 text-sm font-semibold text-white hover:bg-gray-700"
+                            >
+                                Apply
+                            </button>
+                            <button
+                                type="button"
+                                onClick={clearFilters}
+                                className="inline-flex h-10 items-center rounded-md border border-gray-300 px-4 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+                            >
+                                Clear
+                            </button>
+                        </div>
+                    </form>
+
+                    {/* Table View */}
+                    <section className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
+                        <div className="flex flex-col gap-2 border-b border-gray-200 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
                             <div>
-                                <PrimaryButton type="submit" className="h-full !bg-emerald-600 hover:!bg-emerald-700">Search</PrimaryButton>
+                                <h3 className="text-base font-semibold text-gray-900">
+                                    Learner Academic Records
+                                </h3>
+                                <p className="mt-1 text-sm text-gray-500">
+                                    Showing {learners.from ?? 0}-
+                                    {learners.to ?? 0} of {learners.total} records
+                                </p>
                             </div>
-                        </form>
-                    </div>
+                        </div>
 
-                    {/* Roster */}
-                    <div className="bg-white rounded-xl shadow-[0_4px_20px_rgba(0,0,0,0.03)] border border-slate-200 overflow-hidden">
-                        <table className="min-w-full divide-y divide-slate-200">
-                            <thead className="bg-[#002b80]">
-                                <tr>
-                                    <th scope="col" className="px-6 py-4 text-left text-xs font-bold text-white uppercase tracking-wider">Learner</th>
-                                    <th scope="col" className="px-6 py-4 text-left text-xs font-bold text-white uppercase tracking-wider">Enrollment</th>
-                                    <th scope="col" className="px-6 py-4 text-left text-xs font-bold text-white uppercase tracking-wider">Grades Status</th>
-                                    <th scope="col" className="px-6 py-4 text-right text-xs font-bold text-white uppercase tracking-wider">Action</th>
-                                </tr>
-                            </thead>
-                            <tbody className="bg-white divide-y divide-slate-200">
-                                {learners.data.length > 0 ? learners.data.map((learner) => (
-                                    <tr key={learner.id} className="hover:bg-slate-50 transition-colors">
-                                        <td className="px-6 py-4 whitespace-nowrap">
-                                            <div className="flex items-center">
-                                                <div className="h-10 w-10 rounded-full bg-slate-100 flex items-center justify-center font-bold text-slate-600 text-sm mr-4 border border-slate-200">
-                                                    {learner.full_name.substring(0,2).toUpperCase()}
-                                                </div>
-                                                <div>
-                                                    <div className="text-sm font-bold text-slate-900">{learner.full_name}</div>
-                                                    <div className="text-xs text-slate-500 font-medium">LRN: {learner.lrn}</div>
-                                                </div>
-                                            </div>
-                                        </td>
-                                        <td className="px-6 py-4 whitespace-nowrap">
-                                            <div className="text-sm text-slate-900 font-bold">{learner.current_level || 'No Level'}</div>
-                                            <div className="text-xs text-slate-500">{learner.section || 'No Section'}</div>
-                                        </td>
-                                        <td className="px-6 py-4 whitespace-nowrap">
-                                            {learner.has_grades ? (
-                                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800">
-                                                    Grades Encoded
-                                                </span>
-                                            ) : (
-                                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-800">
-                                                    No Grades Yet
-                                                </span>
-                                            )}
-                                        </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                            <Link href={route('academic-records.show', learner.id)}>
-                                                <SecondaryButton className="text-xs">View Report Card</SecondaryButton>
-                                            </Link>
-                                        </td>
-                                    </tr>
-                                )) : (
+                        <div className="overflow-x-auto">
+                            <table className="min-w-full divide-y divide-gray-200">
+                                <thead className="bg-gray-50">
                                     <tr>
-                                        <td colSpan={4} className="px-6 py-12 text-center text-sm font-medium text-slate-500">
-                                            No learners found matching the filters.
-                                        </td>
+                                        <HeaderCell>Learner</HeaderCell>
+                                        <HeaderCell>Level &amp; Section</HeaderCell>
+                                        <HeaderCell>Grades Status</HeaderCell>
+                                        <HeaderCell>Action</HeaderCell>
                                     </tr>
-                                )}
-                            </tbody>
-                        </table>
-                    </div>
+                                </thead>
+                                <tbody className="divide-y divide-gray-200 bg-white">
+                                    {learners.data.map((learner) => (
+                                        <tr
+                                            key={learner.id}
+                                            className="hover:bg-gray-50"
+                                        >
+                                            <td className="whitespace-nowrap px-5 py-4">
+                                                <Link
+                                                    href={route(
+                                                        'academic-records.show',
+                                                        learner.id,
+                                                    )}
+                                                    className="font-semibold text-gray-900 hover:text-indigo-700"
+                                                >
+                                                    {learner.full_name}
+                                                </Link>
+                                                <p className="mt-1 text-xs text-gray-500">
+                                                    LRN {learner.lrn}
+                                                </p>
+                                            </td>
+                                            <td className="whitespace-nowrap px-5 py-4 text-sm text-gray-700">
+                                                <span className="font-semibold text-gray-900">
+                                                    {learner.current_level ||
+                                                        'No Level'}
+                                                </span>
+                                                <p className="mt-1 text-xs text-gray-500">
+                                                    {learner.section ||
+                                                        'Unassigned'}
+                                                </p>
+                                            </td>
+                                            <td className="whitespace-nowrap px-5 py-4">
+                                                {learner.has_grades ? (
+                                                    <span className="inline-flex items-center rounded-md bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
+                                                        Grades Encoded
+                                                    </span>
+                                                ) : (
+                                                    <span className="inline-flex items-center rounded-md bg-gray-100 px-2.5 py-1 text-xs font-semibold text-gray-600">
+                                                        Pending Encoding
+                                                    </span>
+                                                )}
+                                            </td>
+                                            <td className="whitespace-nowrap px-5 py-4 text-sm">
+                                                <Link
+                                                    href={route(
+                                                        'academic-records.show',
+                                                        learner.id,
+                                                    )}
+                                                    className="inline-flex items-center rounded-md border border-gray-300 px-3 py-1 text-xs font-semibold text-gray-700 hover:bg-gray-50"
+                                                >
+                                                    View Report Card &rarr;
+                                                </Link>
+                                            </td>
+                                        </tr>
+                                    ))}
 
-                    {/* Pagination */}
-                    {learners.total > learners.data.length && (
-                        <div className="mt-6 flex justify-center">
-                            <div className="flex flex-wrap gap-1">
-                                {learners.links.map((link, i) => (
+                                    {learners.data.length === 0 && (
+                                        <tr>
+                                            <td
+                                                colSpan={4}
+                                                className="px-5 py-10 text-center text-sm text-gray-500"
+                                            >
+                                                No learners found matching the filters.
+                                            </td>
+                                        </tr>
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        {learners.links.length > 3 && (
+                            <div className="flex flex-wrap gap-2 border-t border-gray-200 px-5 py-4">
+                                {learners.links.map((link) => (
                                     <Link
-                                        key={i}
-                                        href={link.url || '#'}
-                                        className={`px-4 py-2 border rounded-lg text-sm font-medium ${
-                                            link.active 
-                                            ? 'bg-emerald-600 text-white border-emerald-600' 
-                                            : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'
-                                        } ${!link.url ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                        dangerouslySetInnerHTML={{ __html: link.label }}
+                                        key={link.label}
+                                        href={link.url ?? '#'}
+                                        preserveScroll
+                                        className={
+                                            'rounded-md border px-3 py-1 text-sm ' +
+                                            (link.active
+                                                ? 'border-gray-900 bg-gray-900 text-white'
+                                                : 'border-gray-300 text-gray-700 hover:bg-gray-50') +
+                                            (!link.url
+                                                ? ' pointer-events-none opacity-40'
+                                                : '')
+                                        }
+                                        dangerouslySetInnerHTML={{
+                                            __html: link.label,
+                                        }}
                                     />
                                 ))}
                             </div>
-                        </div>
-                    )}
+                        )}
+                    </section>
                 </div>
             </div>
         </AuthenticatedLayout>
+    );
+}
+
+function HeaderCell({ children }: { children: React.ReactNode }) {
+    return (
+        <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+            {children}
+        </th>
     );
 }

@@ -28,79 +28,121 @@ type Props = {
 };
 
 export default function ClassesShow({ section, unassigned }: Props) {
-    
     const handleAssign = (enrollmentId: number) => {
-        router.post(route('classes.assign', section.id), {
-            enrollment_id: enrollmentId
-        }, { preserveScroll: true });
+        router.post(
+            route('classes.assign', section.id),
+            { enrollment_id: enrollmentId },
+            { preserveScroll: true },
+        );
     };
 
     const handleUnassign = (enrollmentId: number) => {
-        router.post(route('classes.unassign', section.id), {
-            enrollment_id: enrollmentId
-        }, { preserveScroll: true });
+        router.post(
+            route('classes.unassign', section.id),
+            { enrollment_id: enrollmentId },
+            { preserveScroll: true },
+        );
     };
 
     return (
         <AuthenticatedLayout
             header={
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
                     <div>
-                        <div className="flex items-center gap-2 text-sm font-bold text-slate-500 mb-1">
-                            <Link href={route('classes.index')} className="hover:text-emerald-600 transition">Sections</Link>
+                        <div className="flex items-center gap-2 text-sm font-medium text-gray-500">
+                            <Link
+                                href={route('classes.index')}
+                                className="hover:text-indigo-600"
+                            >
+                                Classes &amp; Sections
+                            </Link>
                             <span>/</span>
                             <span>{section.level}</span>
                         </div>
-                        <h1 className="text-2xl font-black text-slate-900 tracking-tight">{section.name} Roster</h1>
+                        <h2 className="text-xl font-semibold leading-tight text-gray-900">
+                            Section {section.name} Roster
+                        </h2>
                     </div>
-                    <div className="flex items-center gap-3">
-                        <div className="bg-white border border-slate-200 rounded-lg px-4 py-2 shadow-sm text-sm">
-                            <span className="font-medium text-slate-500 mr-2">Capacity:</span>
-                            <span className="font-black text-emerald-600">{section.enrollments.length} Assigned</span>
-                        </div>
+                    <div className="text-sm font-medium text-gray-500">
+                        Assigned learners:{' '}
+                        <span className="font-semibold text-gray-900">
+                            {section.enrollments.length}
+                        </span>
                     </div>
                 </div>
             }
         >
-            <Head title={`${section.name} Roster`} />
+            <Head title={`Section ${section.name} Roster`} />
 
-            <div className="py-8 px-4 sm:px-6 lg:px-8">
-                <div className="mx-auto w-full max-w-none">
-                    
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                        
+            <div className="py-8">
+                <div className="mx-auto max-w-7xl space-y-5 px-4 sm:px-6 lg:px-8">
+                    {/* Section Summary Bar */}
+                    <div className="flex flex-col gap-3 rounded-lg border border-gray-200 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+                        <div>
+                            <span className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                                Section Details
+                            </span>
+                            <div className="mt-1 flex items-center gap-3 text-sm">
+                                <span className="font-semibold text-gray-900">
+                                    {section.level} - {section.name}
+                                </span>
+                                <span className="text-gray-400">·</span>
+                                <span className="text-gray-600 capitalize">
+                                    Session: {section.session.replace('_', ' ')}
+                                </span>
+                                <span className="text-gray-400">·</span>
+                                <span className="text-gray-600">
+                                    Adviser: {section.teacher_name || 'Unassigned'}
+                                </span>
+                            </div>
+                        </div>
+                        <Link
+                            href={route('classes.index')}
+                            className="inline-flex h-9 items-center rounded-md border border-gray-300 px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50"
+                        >
+                            &larr; Back to Sections
+                        </Link>
+                    </div>
+
+                    <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
                         {/* Left Column: Unassigned Pool */}
-                        <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex flex-col max-h-[800px]">
-                            <div className="px-5 py-4 border-b border-slate-200 bg-slate-50 flex justify-between items-center">
+                        <section className="flex flex-col overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm max-h-[700px]">
+                            <div className="flex items-center justify-between border-b border-gray-200 bg-gray-50 px-5 py-3">
                                 <div>
-                                    <h3 className="font-black text-slate-900">Unassigned Pool</h3>
-                                    <p className="text-xs font-medium text-slate-500">{section.level} students without a section</p>
+                                    <h3 className="text-sm font-semibold text-gray-900">
+                                        Unassigned Pool
+                                    </h3>
+                                    <p className="text-xs text-gray-500">
+                                        {section.level} learners without a section
+                                    </p>
                                 </div>
-                                <span className="bg-slate-200 text-slate-700 px-2.5 py-0.5 rounded-full text-xs font-bold">
+                                <span className="rounded-md bg-gray-200 px-2 py-0.5 text-xs font-semibold text-gray-700">
                                     {unassigned.length}
                                 </span>
                             </div>
-                            <div className="overflow-y-auto p-2 flex-1 bg-slate-50/50">
+
+                            <div className="flex-1 overflow-y-auto p-4">
                                 {unassigned.length === 0 ? (
-                                    <div className="text-center py-12">
-                                        <p className="text-sm font-bold text-slate-500">No unassigned students found.</p>
+                                    <div className="py-12 text-center text-sm text-gray-400">
+                                        No unassigned learners found.
                                     </div>
                                 ) : (
                                     <ul className="space-y-2">
-                                        {unassigned.map(enrollment => (
-                                            <li 
+                                        {unassigned.map((enrollment) => (
+                                            <li
                                                 key={enrollment.id}
-                                                className="bg-white border border-slate-200 p-3 rounded-lg shadow-sm flex items-center justify-between hover:border-emerald-300 transition-colors group"
+                                                className="group flex items-center justify-between rounded-md border border-gray-200 p-3 text-sm transition hover:bg-gray-50"
                                             >
-                                                <div className="flex items-center gap-3">
-                                                    <div className="h-8 w-8 rounded-full bg-slate-100 flex items-center justify-center font-bold text-slate-500 text-xs">
-                                                        {enrollment.learner.full_name.substring(0, 2).toUpperCase()}
-                                                    </div>
-                                                    <span className="text-sm font-bold text-slate-800">{enrollment.learner.full_name}</span>
-                                                </div>
-                                                <button 
-                                                    onClick={() => handleAssign(enrollment.id)}
-                                                    className="opacity-0 group-hover:opacity-100 transition-opacity bg-emerald-50 text-emerald-700 hover:bg-emerald-600 hover:text-white px-3 py-1.5 rounded-md text-xs font-bold"
+                                                <span className="font-semibold text-gray-900">
+                                                    {enrollment.learner.full_name}
+                                                </span>
+                                                <button
+                                                    onClick={() =>
+                                                        handleAssign(
+                                                            enrollment.id,
+                                                        )
+                                                    }
+                                                    className="rounded-md bg-gray-900 px-3 py-1 text-xs font-semibold text-white hover:bg-gray-700"
                                                 >
                                                     Assign &rarr;
                                                 </button>
@@ -109,40 +151,46 @@ export default function ClassesShow({ section, unassigned }: Props) {
                                     </ul>
                                 )}
                             </div>
-                        </div>
+                        </section>
 
                         {/* Right Column: Official Roster */}
-                        <div className="bg-white rounded-xl border border-emerald-200 shadow-[0_0_15px_rgba(16,185,129,0.1)] overflow-hidden flex flex-col max-h-[800px]">
-                            <div className="px-5 py-4 border-b border-emerald-100 bg-emerald-50 flex justify-between items-center">
+                        <section className="flex flex-col overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm max-h-[700px]">
+                            <div className="flex items-center justify-between border-b border-gray-200 bg-gray-50 px-5 py-3">
                                 <div>
-                                    <h3 className="font-black text-emerald-900">Official Roster</h3>
-                                    <p className="text-xs font-medium text-emerald-700">Adviser: {section.teacher_name || 'TBA'}</p>
+                                    <h3 className="text-sm font-semibold text-gray-900">
+                                        Official Section Roster
+                                    </h3>
+                                    <p className="text-xs text-gray-500">
+                                        Adviser: {section.teacher_name || 'TBA'}
+                                    </p>
                                 </div>
-                                <span className="bg-emerald-200 text-emerald-800 px-2.5 py-0.5 rounded-full text-xs font-bold">
+                                <span className="rounded-md bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-700">
                                     {section.enrollments.length}
                                 </span>
                             </div>
-                            <div className="overflow-y-auto p-2 flex-1">
+
+                            <div className="flex-1 overflow-y-auto p-4">
                                 {section.enrollments.length === 0 ? (
-                                    <div className="text-center py-12">
-                                        <p className="text-sm font-bold text-slate-500">This section is currently empty.</p>
+                                    <div className="py-12 text-center text-sm text-gray-400">
+                                        This section is currently empty.
                                     </div>
                                 ) : (
                                     <ul className="space-y-2">
-                                        {section.enrollments.map(enrollment => (
-                                            <li 
+                                        {section.enrollments.map((enrollment) => (
+                                            <li
                                                 key={enrollment.id}
-                                                className="bg-white border border-slate-100 p-3 rounded-lg shadow-sm flex items-center justify-between hover:border-rose-200 transition-colors group"
+                                                className="group flex items-center justify-between rounded-md border border-gray-200 p-3 text-sm transition hover:bg-gray-50"
                                             >
-                                                <div className="flex items-center gap-3">
-                                                    <div className="h-8 w-8 rounded-full bg-emerald-100 flex items-center justify-center font-bold text-emerald-700 text-xs">
-                                                        {enrollment.learner.full_name.substring(0, 2).toUpperCase()}
-                                                    </div>
-                                                    <span className="text-sm font-bold text-slate-800">{enrollment.learner.full_name}</span>
-                                                </div>
-                                                <button 
-                                                    onClick={() => handleUnassign(enrollment.id)}
-                                                    className="opacity-0 group-hover:opacity-100 transition-opacity bg-rose-50 text-rose-700 hover:bg-rose-600 hover:text-white px-3 py-1.5 rounded-md text-xs font-bold"
+                                                <span className="font-semibold text-gray-900">
+                                                    {enrollment.learner.full_name}
+                                                </span>
+                                                <button
+                                                    onClick={() =>
+                                                        handleUnassign(
+                                                            enrollment.id,
+                                                        )
+                                                    }
+                                                    className="rounded-md border border-rose-300 bg-rose-50 px-3 py-1 text-xs font-semibold text-rose-700 hover:bg-rose-100"
                                                 >
                                                     &larr; Remove
                                                 </button>
@@ -151,10 +199,8 @@ export default function ClassesShow({ section, unassigned }: Props) {
                                     </ul>
                                 )}
                             </div>
-                        </div>
-
+                        </section>
                     </div>
-
                 </div>
             </div>
         </AuthenticatedLayout>

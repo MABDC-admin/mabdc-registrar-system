@@ -1,13 +1,6 @@
 import React, { useState } from 'react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import { Head, useForm } from '@inertiajs/react';
-import { 
-    FileText, 
-    Download, 
-    Search,
-    BookOpen,
-    Award
-} from 'lucide-react';
+import { Head } from '@inertiajs/react';
 
 interface Learner {
     id: number;
@@ -23,143 +16,213 @@ interface Props {
 
 export default function CertificatesIndex({ learners }: Props) {
     const [searchQuery, setSearchQuery] = useState('');
-    const [selectedLearner, setSelectedLearner] = useState<Learner | null>(null);
+    const [selectedLearner, setSelectedLearner] = useState<Learner | null>(
+        null,
+    );
 
-    const filteredLearners = learners.filter(learner => {
-        const fullName = `${learner.first_name} ${learner.last_name}`.toLowerCase();
-        return fullName.includes(searchQuery.toLowerCase()) || learner.lrn.includes(searchQuery);
+    const filteredLearners = learners.filter((learner) => {
+        const fullName =
+            `${learner.first_name} ${learner.last_name}`.toLowerCase();
+        return (
+            fullName.includes(searchQuery.toLowerCase()) ||
+            learner.lrn.includes(searchQuery)
+        );
     });
 
     const handleGenerate = (type: string) => {
         if (!selectedLearner) return;
-        
-        // Open the generated certificate in a new tab for printing
-        window.open(route('certificates.generate', {
-            learner_id: selectedLearner.id,
-            type: type
-        }), '_blank');
+
+        window.open(
+            route('certificates.generate', {
+                learner_id: selectedLearner.id,
+                type: type,
+            }),
+            '_blank',
+        );
     };
 
     return (
         <AuthenticatedLayout
-            header={<h2 className="font-semibold text-xl text-gray-800 leading-tight">Certificates & Documents</h2>}
+            header={
+                <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+                    <div>
+                        <p className="text-sm font-medium text-gray-500">
+                            Document issuance
+                        </p>
+                        <h2 className="text-xl font-semibold leading-tight text-gray-900">
+                            Certificates &amp; Transcripts
+                        </h2>
+                    </div>
+                </div>
+            }
         >
-            <Head title="Certificates" />
+            <Head title="Certificates & Transcripts" />
 
-            <div className="py-12">
-                <div className="max-w-full mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
-                    {/* Main Content */}
-                    <div className="bg-white p-6 rounded-lg shadow-sm">
-                        <div className="mb-6">
-                            <h3 className="text-lg font-medium text-gray-900 mb-2">Generate Official Documents</h3>
-                            <p className="text-sm text-gray-500">
-                                Select a student and the type of document you wish to generate. The document will open in a new tab for printing.
-                            </p>
-                        </div>
+            <div className="py-8">
+                <div className="mx-auto max-w-7xl space-y-5 px-4 sm:px-6 lg:px-8">
+                    {/* Instructions Banner */}
+                    <div className="rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
+                        <h3 className="text-base font-semibold text-gray-900">
+                            Generate Official Certificates &amp; Transcripts
+                        </h3>
+                        <p className="mt-1 text-sm text-gray-500">
+                            Select a learner from the directory on the left, then choose the official certificate template to print or download.
+                        </p>
+                    </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                            {/* Left Column: Student Selection */}
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-2">
-                                    1. Select Student
-                                </label>
-                                <div className="relative mb-4">
-                                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                        <Search className="h-4 w-4 text-gray-400" />
-                                    </div>
+                    <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+                        {/* Step 1: Select Student */}
+                        <section className="flex flex-col overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
+                            <div className="border-b border-gray-200 bg-gray-50 px-5 py-3">
+                                <h3 className="text-sm font-semibold text-gray-900">
+                                    1. Choose Learner
+                                </h3>
+                                <p className="text-xs text-gray-500">
+                                    Filter and select from active directory records
+                                </p>
+                            </div>
+
+                            <div className="p-4 space-y-3">
+                                <label className="block">
+                                    <span className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                                        Search Directory
+                                    </span>
                                     <input
                                         type="text"
-                                        placeholder="Search by name or LRN..."
-                                        className="pl-10 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                                        placeholder="Name or LRN..."
+                                        className="mt-1 block w-full rounded-md border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
                                         value={searchQuery}
-                                        onChange={(e) => setSearchQuery(e.target.value)}
+                                        onChange={(e) =>
+                                            setSearchQuery(e.target.value)
+                                        }
                                     />
-                                </div>
-                                <div className="border rounded-md max-h-64 overflow-y-auto">
-                                    {filteredLearners.length > 0 ? (
-                                        <ul className="divide-y divide-gray-200">
-                                            {filteredLearners.map(learner => (
-                                                <li 
-                                                    key={learner.id}
-                                                    className={`p-3 cursor-pointer hover:bg-gray-50 flex flex-col ${selectedLearner?.id === learner.id ? 'bg-blue-50 border-l-4 border-blue-500' : ''}`}
-                                                    onClick={() => setSelectedLearner(learner)}
-                                                >
-                                                    <span className="font-medium text-gray-900">
-                                                        {learner.first_name} {learner.last_name}
+                                </label>
+
+                                <div className="max-h-80 overflow-y-auto rounded-md border border-gray-200 divide-y divide-gray-100">
+                                    {filteredLearners.map((learner) => {
+                                        const isSelected =
+                                            selectedLearner?.id === learner.id;
+                                        return (
+                                            <button
+                                                key={learner.id}
+                                                type="button"
+                                                onClick={() =>
+                                                    setSelectedLearner(learner)
+                                                }
+                                                className={`w-full text-left p-3 transition flex items-center justify-between ${
+                                                    isSelected
+                                                        ? 'bg-indigo-50 border-l-4 border-indigo-600'
+                                                        : 'hover:bg-gray-50'
+                                                }`}
+                                            >
+                                                <div>
+                                                    <span className="text-sm font-semibold text-gray-900">
+                                                        {learner.first_name}{' '}
+                                                        {learner.last_name}
                                                     </span>
-                                                    <span className="text-xs text-gray-500">LRN: {learner.lrn}</span>
-                                                </li>
-                                            ))}
-                                        </ul>
-                                    ) : (
-                                        <div className="p-4 text-sm text-gray-500 text-center">
-                                            No students found.
+                                                    <p className="text-xs text-gray-500">
+                                                        LRN: {learner.lrn}
+                                                    </p>
+                                                </div>
+                                                {isSelected && (
+                                                    <span className="rounded-md bg-indigo-600 px-2 py-0.5 text-xs font-semibold text-white">
+                                                        Selected
+                                                    </span>
+                                                )}
+                                            </button>
+                                        );
+                                    })}
+
+                                    {filteredLearners.length === 0 && (
+                                        <div className="py-8 text-center text-sm text-gray-400">
+                                            No learners found matching query.
                                         </div>
                                     )}
                                 </div>
                             </div>
+                        </section>
 
-                            {/* Right Column: Document Types */}
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-2">
-                                    2. Select Document Type
-                                </label>
-                                
-                                <div className="space-y-4">
-                                    {/* Certificate of Enrollment */}
-                                    <div className={`border rounded-lg p-4 transition-colors ${!selectedLearner ? 'opacity-50 pointer-events-none' : 'hover:border-blue-300'}`}>
-                                        <div className="flex items-start justify-between">
-                                            <div className="flex items-center gap-3">
-                                                <div className="p-2 bg-blue-100 text-blue-600 rounded-lg">
-                                                    <BookOpen className="h-6 w-6" />
-                                                </div>
-                                                <div>
-                                                    <h4 className="font-medium text-gray-900">Certificate of Enrollment</h4>
-                                                    <p className="text-sm text-gray-500">Official proof of current enrollment status.</p>
-                                                </div>
-                                            </div>
-                                            <button
-                                                onClick={() => handleGenerate('enrollment')}
-                                                disabled={!selectedLearner}
-                                                className="flex items-center gap-1 px-3 py-1.5 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 disabled:opacity-50"
-                                            >
-                                                <Download className="h-4 w-4" />
-                                                Generate
-                                            </button>
-                                        </div>
-                                    </div>
+                        {/* Step 2: Available Templates */}
+                        <section className="flex flex-col overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
+                            <div className="border-b border-gray-200 bg-gray-50 px-5 py-3">
+                                <h3 className="text-sm font-semibold text-gray-900">
+                                    2. Available Certificate Templates
+                                </h3>
+                                <p className="text-xs text-gray-500">
+                                    {selectedLearner
+                                        ? `Issuing for: ${selectedLearner.first_name} ${selectedLearner.last_name}`
+                                        : 'Please select a student on the left first'}
+                                </p>
+                            </div>
 
-                                    {/* Certificate of Good Moral Character */}
-                                    <div className={`border rounded-lg p-4 transition-colors ${!selectedLearner ? 'opacity-50 pointer-events-none' : 'hover:border-blue-300'}`}>
-                                        <div className="flex items-start justify-between">
-                                            <div className="flex items-center gap-3">
-                                                <div className="p-2 bg-green-100 text-green-600 rounded-lg">
-                                                    <Award className="h-6 w-6" />
-                                                </div>
-                                                <div>
-                                                    <h4 className="font-medium text-gray-900">Good Moral Character</h4>
-                                                    <p className="text-sm text-gray-500">Certification of student's good conduct.</p>
-                                                </div>
-                                            </div>
-                                            <button
-                                                onClick={() => handleGenerate('good_moral')}
-                                                disabled={!selectedLearner}
-                                                className="flex items-center gap-1 px-3 py-1.5 text-sm font-medium text-white bg-green-600 rounded-md hover:bg-green-700 disabled:opacity-50"
-                                            >
-                                                <Download className="h-4 w-4" />
-                                                Generate
-                                            </button>
+                            <div className="p-4 space-y-4">
+                                {/* Certificate 1: Enrollment */}
+                                <div
+                                    className={`rounded-lg border p-4 transition ${
+                                        selectedLearner
+                                            ? 'border-gray-200 bg-white shadow-xs'
+                                            : 'border-gray-100 bg-gray-50 opacity-50 pointer-events-none'
+                                    }`}
+                                >
+                                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                                        <div>
+                                            <h4 className="text-sm font-semibold text-gray-900">
+                                                Certificate of Enrollment
+                                            </h4>
+                                            <p className="mt-0.5 text-xs text-gray-500">
+                                                Official verification of current enrollment status and grade level.
+                                            </p>
                                         </div>
+                                        <button
+                                            type="button"
+                                            onClick={() =>
+                                                handleGenerate('enrollment')
+                                            }
+                                            disabled={!selectedLearner}
+                                            className="inline-flex h-9 items-center rounded-md bg-gray-900 px-3.5 text-xs font-semibold text-white hover:bg-gray-700 disabled:opacity-40"
+                                        >
+                                            Generate &amp; Print
+                                        </button>
                                     </div>
                                 </div>
-                                
+
+                                {/* Certificate 2: Good Moral */}
+                                <div
+                                    className={`rounded-lg border p-4 transition ${
+                                        selectedLearner
+                                            ? 'border-gray-200 bg-white shadow-xs'
+                                            : 'border-gray-100 bg-gray-50 opacity-50 pointer-events-none'
+                                    }`}
+                                >
+                                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                                        <div>
+                                            <h4 className="text-sm font-semibold text-gray-900">
+                                                Certificate of Good Moral Character
+                                            </h4>
+                                            <p className="mt-0.5 text-xs text-gray-500">
+                                                Official certification of the student's conduct and disciplinary record.
+                                            </p>
+                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={() =>
+                                                handleGenerate('good_moral')
+                                            }
+                                            disabled={!selectedLearner}
+                                            className="inline-flex h-9 items-center rounded-md bg-gray-900 px-3.5 text-xs font-semibold text-white hover:bg-gray-700 disabled:opacity-40"
+                                        >
+                                            Generate &amp; Print
+                                        </button>
+                                    </div>
+                                </div>
+
                                 {!selectedLearner && (
-                                    <p className="mt-4 text-sm text-amber-600 bg-amber-50 p-3 rounded-md border border-amber-200">
-                                        Please select a student first to generate documents.
+                                    <p className="text-xs text-amber-800 bg-amber-50 p-3 rounded-md border border-amber-200">
+                                        Please choose a learner from the left panel to activate template generation.
                                     </p>
                                 )}
                             </div>
-                        </div>
+                        </section>
                     </div>
                 </div>
             </div>

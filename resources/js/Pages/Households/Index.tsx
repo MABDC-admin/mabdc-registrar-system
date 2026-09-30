@@ -1,6 +1,11 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
-import { Head, useForm, router } from '@inertiajs/react';
+import { Head, router, useForm } from '@inertiajs/react';
 import React, { useState } from 'react';
+import Modal from '@/Components/Modal';
+import InputLabel from '@/Components/InputLabel';
+import TextInput from '@/Components/TextInput';
+import InputError from '@/Components/InputError';
+import SecondaryButton from '@/Components/SecondaryButton';
 
 interface HouseholdLearner {
     id: number;
@@ -29,7 +34,10 @@ interface IndexProps {
     };
 }
 
-export default function Index({ households, filters }: IndexProps) {
+export default function HouseholdsIndex({
+    households,
+    filters,
+}: IndexProps) {
     const [search, setSearch] = useState(filters.search || '');
     const [showCreateModal, setShowCreateModal] = useState(false);
 
@@ -43,7 +51,16 @@ export default function Index({ households, filters }: IndexProps) {
 
     const handleSearch = (e: React.FormEvent) => {
         e.preventDefault();
-        router.get(route('households.index'), { search }, { preserveState: true });
+        router.get(
+            route('households.index'),
+            { search },
+            { preserveState: true },
+        );
+    };
+
+    const clearFilters = () => {
+        setSearch('');
+        router.get(route('households.index'), {}, { replace: true });
     };
 
     const handleCreateSubmit = (e: React.FormEvent) => {
@@ -59,174 +76,275 @@ export default function Index({ households, filters }: IndexProps) {
     return (
         <AuthenticatedLayout
             header={
-                <div className="flex flex-col gap-1">
-                    <h2 className="text-sm font-extrabold text-white tracking-tight">Family & Household Accounts</h2>
-                    <p className="text-[11px] text-slate-300">Group learners under household units for sibling management & combined accounting</p>
-                </div>
-            }
-        >
-            <Head title="Households & Sibling Accounts" />
-
-            <div className="p-4 max-w-7xl mx-auto space-y-4">
-                {/* Search & Actions Bar */}
-                <div className="flex flex-col sm:flex-row justify-between items-center gap-3 bg-white p-3 rounded-2xl shadow-xs border border-slate-100">
-                    <form onSubmit={handleSearch} className="flex items-center gap-2 w-full sm:w-auto">
-                        <input
-                            type="text"
-                            placeholder="Search family name, code, contact..."
-                            value={search}
-                            onChange={(e) => setSearch(e.target.value)}
-                            className="text-[11px] px-3 py-1.5 border border-slate-200 rounded-xl w-64 focus:ring-1 focus:ring-[#002b80] focus:border-[#002b80]"
-                        />
-                        <button
-                            type="submit"
-                            className="bg-[#002b80] text-white text-[11px] font-bold px-3 py-1.5 rounded-xl hover:bg-[#001746] transition-all"
-                        >
-                            Filter
-                        </button>
-                    </form>
-
+                <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+                    <div>
+                        <p className="text-sm font-medium text-gray-500">
+                            Family &amp; sibling grouping
+                        </p>
+                        <h2 className="text-xl font-semibold leading-tight text-gray-900">
+                            Household Accounts
+                        </h2>
+                    </div>
                     <button
                         onClick={() => setShowCreateModal(true)}
-                        className="bg-[#002b80] text-[#ffc000] text-[11px] font-black px-4 py-2 rounded-xl shadow-xs hover:bg-[#001746] transition-all"
+                        className="inline-flex h-9 items-center rounded-md bg-gray-900 px-4 text-sm font-semibold text-white hover:bg-gray-700"
                     >
                         + Create Household
                     </button>
                 </div>
+            }
+        >
+            <Head title="Household Accounts" />
 
-                {/* Household Cards / Table */}
-                <div className="bg-white rounded-2xl border border-slate-100 shadow-xs overflow-hidden">
-                    <table className="w-full text-left text-[11px]">
-                        <thead className="bg-slate-50 text-slate-600 font-extrabold border-b border-slate-100">
-                            <tr>
-                                <th className="px-4 py-2.5">Code</th>
-                                <th className="px-4 py-2.5">Family Name</th>
-                                <th className="px-4 py-2.5">Primary Contact</th>
-                                <th className="px-4 py-2.5">Email / Phone</th>
-                                <th className="px-4 py-2.5">Linked Learners</th>
-                                <th className="px-4 py-2.5 text-right">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
-                            {households.data.length === 0 ? (
-                                <tr>
-                                    <td colSpan={6} className="text-center py-8 text-slate-400 italic">
-                                        No households found. Create one to link sibling accounts.
-                                    </td>
-                                </tr>
-                            ) : (
-                                households.data.map((hh) => (
-                                    <tr key={hh.id} className="hover:bg-slate-50/50 transition-colors">
-                                        <td className="px-4 py-2 font-black text-[#002b80]">{hh.household_code}</td>
-                                        <td className="px-4 py-2 font-bold text-slate-900">{hh.family_name} Family</td>
-                                        <td className="px-4 py-2">{hh.primary_contact_name || '—'}</td>
-                                        <td className="px-4 py-2 text-slate-500">
-                                            {hh.primary_email || hh.primary_phone ? (
-                                                <>
-                                                    {hh.primary_email}
-                                                    {hh.primary_phone && <span className="block text-[10px] text-slate-400">{hh.primary_phone}</span>}
-                                                </>
-                                            ) : (
-                                                '—'
-                                            )}
-                                        </td>
-                                        <td className="px-4 py-2">
-                                            <div className="flex flex-wrap gap-1">
-                                                {hh.learners.map((l) => (
-                                                    <span key={l.id} className="bg-blue-50 text-[#002b80] font-bold text-[10px] px-2 py-0.5 rounded-md border border-blue-100">
-                                                        {l.full_name}
-                                                    </span>
-                                                ))}
-                                                {hh.learners.length === 0 && (
-                                                    <span className="text-slate-400 text-[10px] italic">No learners linked</span>
-                                                )}
-                                            </div>
-                                        </td>
-                                        <td className="px-4 py-2 text-right">
-                                            <button className="text-[#002b80] font-extrabold hover:underline text-[11px]">
-                                                Manage Family
-                                            </button>
-                                        </td>
+            <div className="py-8">
+                <div className="mx-auto max-w-7xl space-y-5 px-4 sm:px-6 lg:px-8">
+                    {/* Search Bar */}
+                    <form
+                        onSubmit={handleSearch}
+                        className="grid gap-3 rounded-lg border border-gray-200 bg-white p-4 shadow-sm sm:grid-cols-[1fr_auto]"
+                    >
+                        <label className="block">
+                            <span className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                                Search Household
+                            </span>
+                            <input
+                                type="text"
+                                placeholder="Family surname, code, or contact name..."
+                                value={search}
+                                onChange={(e) => setSearch(e.target.value)}
+                                className="mt-1 block w-full rounded-md border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                            />
+                        </label>
+
+                        <div className="flex items-end gap-2">
+                            <button
+                                type="submit"
+                                className="inline-flex h-10 items-center rounded-md bg-gray-900 px-4 text-sm font-semibold text-white hover:bg-gray-700"
+                            >
+                                Search
+                            </button>
+                            <button
+                                type="button"
+                                onClick={clearFilters}
+                                className="inline-flex h-10 items-center rounded-md border border-gray-300 px-4 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+                            >
+                                Clear
+                            </button>
+                        </div>
+                    </form>
+
+                    {/* Table Card */}
+                    <section className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
+                        <div className="flex flex-col gap-2 border-b border-gray-200 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+                            <div>
+                                <h3 className="text-base font-semibold text-gray-900">
+                                    Registered Family Units
+                                </h3>
+                                <p className="mt-1 text-sm text-gray-500">
+                                    Showing {households.data.length} household account(s)
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="overflow-x-auto">
+                            <table className="min-w-full divide-y divide-gray-200">
+                                <thead className="bg-gray-50">
+                                    <tr>
+                                        <HeaderCell>Code</HeaderCell>
+                                        <HeaderCell>Family Name</HeaderCell>
+                                        <HeaderCell>Primary Contact</HeaderCell>
+                                        <HeaderCell>Email / Phone</HeaderCell>
+                                        <HeaderCell>Linked Learners</HeaderCell>
                                     </tr>
-                                ))
-                            )}
-                        </tbody>
-                    </table>
+                                </thead>
+                                <tbody className="divide-y divide-gray-200 bg-white">
+                                    {households.data.map((hh) => (
+                                        <tr
+                                            key={hh.id}
+                                            className="hover:bg-gray-50"
+                                        >
+                                            <td className="whitespace-nowrap px-5 py-4 font-mono text-xs font-semibold text-gray-900">
+                                                {hh.household_code}
+                                            </td>
+                                            <td className="whitespace-nowrap px-5 py-4 font-semibold text-gray-900">
+                                                {hh.family_name} Family
+                                            </td>
+                                            <td className="whitespace-nowrap px-5 py-4 text-sm text-gray-700">
+                                                {hh.primary_contact_name || '—'}
+                                            </td>
+                                            <td className="whitespace-nowrap px-5 py-4 text-sm text-gray-600">
+                                                {hh.primary_email || hh.primary_phone ? (
+                                                    <div>
+                                                        <p>{hh.primary_email || '—'}</p>
+                                                        {hh.primary_phone && (
+                                                            <p className="text-xs text-gray-500">
+                                                                {hh.primary_phone}
+                                                            </p>
+                                                        )}
+                                                    </div>
+                                                ) : (
+                                                    '—'
+                                                )}
+                                            </td>
+                                            <td className="px-5 py-4">
+                                                <div className="flex flex-wrap gap-1">
+                                                    {hh.learners.map((l) => (
+                                                        <span
+                                                            key={l.id}
+                                                            className="inline-flex items-center rounded-md bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-800"
+                                                        >
+                                                            {l.full_name}
+                                                        </span>
+                                                    ))}
+                                                    {hh.learners.length === 0 && (
+                                                        <span className="text-xs text-gray-400">
+                                                            No linked learners
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ))}
+
+                                    {households.data.length === 0 && (
+                                        <tr>
+                                            <td
+                                                colSpan={5}
+                                                className="px-5 py-10 text-center text-sm text-gray-500"
+                                            >
+                                                No household accounts registered yet.
+                                            </td>
+                                        </tr>
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+                    </section>
                 </div>
             </div>
 
             {/* Create Modal */}
-            {showCreateModal && (
-                <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
-                    <div className="bg-white rounded-2xl max-w-md w-full p-5 shadow-xl border border-slate-100 space-y-4">
-                        <div className="flex justify-between items-center border-b border-slate-100 pb-3">
-                            <h3 className="text-xs font-black text-[#002b80]">Create Household / Family Unit</h3>
-                            <button onClick={() => setShowCreateModal(false)} className="text-slate-400 hover:text-slate-600 font-bold text-xs">✕</button>
+            <Modal
+                show={showCreateModal}
+                onClose={() => setShowCreateModal(false)}
+            >
+                <form onSubmit={handleCreateSubmit} className="p-6">
+                    <h2 className="text-base font-semibold text-gray-900 mb-4">
+                        Register Family / Household Unit
+                    </h2>
+
+                    <div className="space-y-4">
+                        <div>
+                            <InputLabel
+                                htmlFor="family_name"
+                                value="Family Surname *"
+                            />
+                            <TextInput
+                                id="family_name"
+                                type="text"
+                                className="mt-1 block w-full text-sm"
+                                required
+                                placeholder="e.g. Dela Cruz"
+                                value={createForm.data.family_name}
+                                onChange={(e) =>
+                                    createForm.setData(
+                                        'family_name',
+                                        e.target.value,
+                                    )
+                                }
+                            />
+                            <InputError
+                                message={createForm.errors.family_name}
+                                className="mt-1"
+                            />
                         </div>
-                        <form onSubmit={handleCreateSubmit} className="space-y-3">
+
+                        <div>
+                            <InputLabel
+                                htmlFor="primary_contact_name"
+                                value="Primary Guardian Contact"
+                            />
+                            <TextInput
+                                id="primary_contact_name"
+                                type="text"
+                                className="mt-1 block w-full text-sm"
+                                placeholder="e.g. Maria Dela Cruz"
+                                value={createForm.data.primary_contact_name}
+                                onChange={(e) =>
+                                    createForm.setData(
+                                        'primary_contact_name',
+                                        e.target.value,
+                                    )
+                                }
+                            />
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
                             <div>
-                                <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">Family Surname *</label>
-                                <input
-                                    type="text"
-                                    required
-                                    placeholder="e.g. Dela Cruz"
-                                    value={createForm.data.family_name}
-                                    onChange={(e) => createForm.setData('family_name', e.target.value)}
-                                    className="w-full text-[11px] px-3 py-1.5 border border-slate-200 rounded-xl focus:ring-1 focus:ring-[#002b80]"
+                                <InputLabel
+                                    htmlFor="primary_email"
+                                    value="Email Address"
+                                />
+                                <TextInput
+                                    id="primary_email"
+                                    type="email"
+                                    className="mt-1 block w-full text-sm"
+                                    placeholder="guardian@example.com"
+                                    value={createForm.data.primary_email}
+                                    onChange={(e) =>
+                                        createForm.setData(
+                                            'primary_email',
+                                            e.target.value,
+                                        )
+                                    }
                                 />
                             </div>
                             <div>
-                                <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">Primary Guardian Contact</label>
-                                <input
+                                <InputLabel
+                                    htmlFor="primary_phone"
+                                    value="Contact Phone"
+                                />
+                                <TextInput
+                                    id="primary_phone"
                                     type="text"
-                                    placeholder="e.g. Maria Dela Cruz"
-                                    value={createForm.data.primary_contact_name}
-                                    onChange={(e) => createForm.setData('primary_contact_name', e.target.value)}
-                                    className="w-full text-[11px] px-3 py-1.5 border border-slate-200 rounded-xl focus:ring-1 focus:ring-[#002b80]"
+                                    className="mt-1 block w-full text-sm"
+                                    placeholder="+971 50 xxx xxxx"
+                                    value={createForm.data.primary_phone}
+                                    onChange={(e) =>
+                                        createForm.setData(
+                                            'primary_phone',
+                                            e.target.value,
+                                        )
+                                    }
                                 />
                             </div>
-                            <div className="grid grid-cols-2 gap-2">
-                                <div>
-                                    <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">Email</label>
-                                    <input
-                                        type="email"
-                                        placeholder="email@example.com"
-                                        value={createForm.data.primary_email}
-                                        onChange={(e) => createForm.setData('primary_email', e.target.value)}
-                                        className="w-full text-[11px] px-3 py-1.5 border border-slate-200 rounded-xl focus:ring-1 focus:ring-[#002b80]"
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">Phone</label>
-                                    <input
-                                        type="text"
-                                        placeholder="+971 50 xxx xxxx"
-                                        value={createForm.data.primary_phone}
-                                        onChange={(e) => createForm.setData('primary_phone', e.target.value)}
-                                        className="w-full text-[11px] px-3 py-1.5 border border-slate-200 rounded-xl focus:ring-1 focus:ring-[#002b80]"
-                                    />
-                                </div>
-                            </div>
-                            <div className="pt-3 flex justify-end gap-2 border-t border-slate-100">
-                                <button
-                                    type="button"
-                                    onClick={() => setShowCreateModal(false)}
-                                    className="px-3 py-1.5 text-[11px] font-bold text-slate-500 hover:bg-slate-100 rounded-xl"
-                                >
-                                    Cancel
-                                </button>
-                                <button
-                                    type="submit"
-                                    disabled={createForm.processing}
-                                    className="px-4 py-1.5 text-[11px] font-black text-white bg-[#002b80] hover:bg-[#001746] rounded-xl shadow-xs"
-                                >
-                                    Save Household
-                                </button>
-                            </div>
-                        </form>
+                        </div>
                     </div>
-                </div>
-            )}
+
+                    <div className="mt-6 flex justify-end gap-3">
+                        <SecondaryButton
+                            onClick={() => setShowCreateModal(false)}
+                        >
+                            Cancel
+                        </SecondaryButton>
+                        <button
+                            type="submit"
+                            disabled={createForm.processing}
+                            className="inline-flex h-9 items-center rounded-md bg-gray-900 px-4 text-sm font-semibold text-white hover:bg-gray-700 disabled:opacity-40"
+                        >
+                            Save Household
+                        </button>
+                    </div>
+                </form>
+            </Modal>
         </AuthenticatedLayout>
+    );
+}
+
+function HeaderCell({ children }: { children: React.ReactNode }) {
+    return (
+        <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+            {children}
+        </th>
     );
 }

@@ -1,8 +1,6 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, router, useForm } from '@inertiajs/react';
-import { useState, useEffect } from 'react';
-import PrimaryButton from '@/Components/PrimaryButton';
-import SecondaryButton from '@/Components/SecondaryButton';
+import { useEffect, useState } from 'react';
 
 type Section = {
     id: number;
@@ -30,16 +28,24 @@ type Props = {
     roster: RosterEntry[];
 };
 
-export default function AttendanceIndex({ activeYear, sections, filters, selectedSection, roster }: Props) {
-    
+export default function AttendanceIndex({
+    activeYear,
+    sections,
+    filters,
+    selectedSection,
+    roster,
+}: Props) {
     const [selectedDate, setSelectedDate] = useState(filters.date);
-    const [selectedSectionId, setSelectedSectionId] = useState(filters.section_id || '');
+    const [selectedSectionId, setSelectedSectionId] = useState(
+        filters.section_id || '',
+    );
 
-    const { data, setData, post, processing, isDirty } = useForm({
-        section_id: filters.section_id || '',
-        date: filters.date,
-        attendances: roster || [],
-    });
+    const { data, setData, post, processing, isDirty, recentlySuccessful } =
+        useForm({
+            section_id: filters.section_id || '',
+            date: filters.date,
+            attendances: roster || [],
+        });
 
     useEffect(() => {
         setData('attendances', roster);
@@ -47,184 +53,248 @@ export default function AttendanceIndex({ activeYear, sections, filters, selecte
 
     const handleFilterChange = (sectionId: string, date: string) => {
         if (!sectionId) return;
-        router.get(route('attendance.index'), {
-            section_id: sectionId,
-            date: date
-        }, { preserveState: true, preserveScroll: true });
+        router.get(
+            route('attendance.index'),
+            {
+                section_id: sectionId,
+                date: date,
+            },
+            { preserveState: true, preserveScroll: true },
+        );
     };
 
-    const handleStatusChange = (learnerId: number, status: 'present' | 'absent' | 'late' | 'excused') => {
-        const newAttendances = data.attendances.map(a => 
-            a.learner_id === learnerId ? { ...a, status } : a
+    const handleStatusChange = (
+        learnerId: number,
+        status: 'present' | 'absent' | 'late' | 'excused',
+    ) => {
+        const newAttendances = data.attendances.map((a) =>
+            a.learner_id === learnerId ? { ...a, status } : a,
         );
         setData('attendances', newAttendances);
     };
 
-    const setAllStatus = (status: 'present' | 'absent' | 'late' | 'excused') => {
-        const newAttendances = data.attendances.map(a => ({ ...a, status }));
+    const setAllStatus = (
+        status: 'present' | 'absent' | 'late' | 'excused',
+    ) => {
+        const newAttendances = data.attendances.map((a) => ({ ...a, status }));
         setData('attendances', newAttendances);
     };
 
     const submit = (e: React.FormEvent) => {
         e.preventDefault();
         post(route('attendance.store'), {
-            preserveScroll: true
+            preserveScroll: true,
         });
     };
 
     return (
         <AuthenticatedLayout
             header={
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
                     <div>
-                        <h1 className="text-2xl font-black text-slate-900 tracking-tight">Attendance Tracking</h1>
-                        <p className="mt-1 text-sm font-medium text-slate-500">Record and manage daily attendance by section.</p>
+                        <p className="text-sm font-medium text-gray-500">
+                            Daily roll call
+                        </p>
+                        <h2 className="text-xl font-semibold leading-tight text-gray-900">
+                            Attendance Tracking
+                        </h2>
+                    </div>
+                    <div className="text-sm font-medium text-gray-500">
+                        Active year:{' '}
+                        <span className="font-semibold text-gray-900">
+                            {activeYear?.name ?? 'Not configured'}
+                        </span>
                     </div>
                 </div>
             }
         >
             <Head title="Attendance Tracking" />
 
-            <div className="py-8 px-4 sm:px-6 lg:px-8">
-                <div className="mx-auto w-full max-w-none">
-                    
-                    <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden mb-8">
-                        <div className="p-5 border-b border-slate-200 bg-slate-50 flex flex-col md:flex-row md:items-end gap-4">
-                            <div className="flex-1">
-                                <label className="block text-sm font-bold text-slate-700 mb-1">Select Section</label>
-                                <select 
-                                    className="block w-full border-slate-300 focus:border-emerald-500 focus:ring-emerald-500 rounded-lg shadow-sm"
-                                    value={selectedSectionId}
-                                    onChange={(e) => {
-                                        setSelectedSectionId(e.target.value);
-                                        handleFilterChange(e.target.value, selectedDate);
-                                    }}
-                                >
-                                    <option value="">-- Choose a Section --</option>
-                                    {sections.map(sec => (
-                                        <option key={sec.id} value={sec.id}>
-                                            {sec.level} - {sec.name} ({sec.session.replace('_', ' ').toUpperCase()})
-                                        </option>
-                                    ))}
-                                </select>
-                            </div>
-                            <div className="flex-1">
-                                <label className="block text-sm font-bold text-slate-700 mb-1">Date</label>
-                                <input 
-                                    type="date" 
-                                    className="block w-full border-slate-300 focus:border-emerald-500 focus:ring-emerald-500 rounded-lg shadow-sm"
-                                    value={selectedDate}
-                                    onChange={(e) => {
-                                        setSelectedDate(e.target.value);
-                                        handleFilterChange(selectedSectionId, e.target.value);
-                                    }}
-                                    max={new Date().toISOString().split('T')[0]}
-                                />
-                            </div>
-                        </div>
+            <div className="py-8">
+                <div className="mx-auto max-w-7xl space-y-5 px-4 sm:px-6 lg:px-8">
+                    {/* Filter Card */}
+                    <div className="grid gap-4 rounded-lg border border-gray-200 bg-white p-4 shadow-sm sm:grid-cols-2">
+                        <label className="block">
+                            <span className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                                Class Section
+                            </span>
+                            <select
+                                className="mt-1 block w-full rounded-md border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                value={selectedSectionId}
+                                onChange={(e) => {
+                                    setSelectedSectionId(e.target.value);
+                                    handleFilterChange(
+                                        e.target.value,
+                                        selectedDate,
+                                    );
+                                }}
+                            >
+                                <option value="">-- Choose a Section --</option>
+                                {sections.map((sec) => (
+                                    <option key={sec.id} value={sec.id}>
+                                        {sec.level} - {sec.name} (
+                                        {sec.session.replace('_', ' ')})
+                                    </option>
+                                ))}
+                            </select>
+                        </label>
+
+                        <label className="block">
+                            <span className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                                Attendance Date
+                            </span>
+                            <input
+                                type="date"
+                                className="mt-1 block w-full rounded-md border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                value={selectedDate}
+                                onChange={(e) => {
+                                    setSelectedDate(e.target.value);
+                                    handleFilterChange(
+                                        selectedSectionId,
+                                        e.target.value,
+                                    );
+                                }}
+                                max={new Date().toISOString().split('T')[0]}
+                            />
+                        </label>
                     </div>
 
                     {selectedSection ? (
-                        <form onSubmit={submit} className="bg-white rounded-xl shadow-[0_4px_20px_rgba(0,0,0,0.03)] border border-slate-200 overflow-hidden">
-                            <div className="px-6 py-5 border-b border-slate-200 flex justify-between items-center bg-slate-50/50">
+                        <form
+                            onSubmit={submit}
+                            className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm"
+                        >
+                            <div className="flex flex-col gap-3 border-b border-gray-200 bg-gray-50 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
                                 <div>
-                                    <h2 className="text-lg font-black text-slate-900">{selectedSection.level} - {selectedSection.name}</h2>
-                                    <p className="text-sm text-slate-500 font-medium mt-1">Adviser: {selectedSection.teacher_name || 'N/A'}</p>
+                                    <h3 className="text-base font-semibold text-gray-900">
+                                        {selectedSection.level} - {selectedSection.name}
+                                    </h3>
+                                    <p className="mt-1 text-xs text-gray-500">
+                                        Adviser: {selectedSection.teacher_name || 'Unassigned'} · Date: {selectedDate}
+                                    </p>
                                 </div>
-                                <div className="flex items-center gap-3">
-                                    <button 
-                                        type="button" 
+                                <div className="flex items-center gap-2">
+                                    <button
+                                        type="button"
                                         onClick={() => setAllStatus('present')}
-                                        className="text-xs font-bold text-emerald-600 bg-emerald-50 px-3 py-1.5 rounded-md hover:bg-emerald-100 transition"
+                                        className="rounded-md border border-emerald-300 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-800 hover:bg-emerald-100"
                                     >
                                         Mark All Present
                                     </button>
                                 </div>
                             </div>
-                            
+
                             {roster.length === 0 ? (
-                                <div className="p-12 text-center">
-                                    <p className="text-sm font-bold text-slate-500">No students are currently enrolled in this section.</p>
+                                <div className="py-12 text-center text-sm text-gray-500">
+                                    No learners are currently assigned to this section.
                                 </div>
                             ) : (
                                 <div className="overflow-x-auto">
-                                    <table className="min-w-full divide-y divide-slate-200">
-                                        <thead className="bg-[#002b80]">
+                                    <table className="min-w-full divide-y divide-gray-200">
+                                        <thead className="bg-gray-50">
                                             <tr>
-                                                <th scope="col" className="px-6 py-4 text-left text-xs font-bold text-white uppercase tracking-wider">Learner Name</th>
-                                                <th scope="col" className="px-6 py-4 text-center text-xs font-bold text-white uppercase tracking-wider w-64">Attendance Status</th>
-                                                <th scope="col" className="px-6 py-4 text-left text-xs font-bold text-white uppercase tracking-wider">Remarks</th>
+                                                <HeaderCell>Learner</HeaderCell>
+                                                <th className="px-5 py-3 text-center text-xs font-semibold uppercase tracking-wide text-gray-500 w-80">
+                                                    Attendance Status
+                                                </th>
+                                                <HeaderCell>Remarks</HeaderCell>
                                             </tr>
                                         </thead>
-                                        <tbody className="bg-white divide-y divide-slate-200">
+                                        <tbody className="divide-y divide-gray-200 bg-white">
                                             {data.attendances.map((entry, index) => (
-                                                <tr key={entry.learner_id} className="hover:bg-slate-50 transition-colors">
-                                                    <td className="px-6 py-4 whitespace-nowrap">
-                                                        <div className="flex items-center">
-                                                            <div className="h-8 w-8 rounded-full bg-slate-100 flex items-center justify-center font-bold text-slate-600 text-xs mr-3">
-                                                                {entry.full_name.substring(0,2).toUpperCase()}
-                                                            </div>
-                                                            <span className="text-sm font-bold text-slate-900">{entry.full_name}</span>
-                                                        </div>
+                                                <tr
+                                                    key={entry.learner_id}
+                                                    className="hover:bg-gray-50"
+                                                >
+                                                    <td className="whitespace-nowrap px-5 py-4">
+                                                        <span className="font-semibold text-gray-900">
+                                                            {entry.full_name}
+                                                        </span>
                                                     </td>
-                                                    <td className="px-6 py-4 whitespace-nowrap text-center">
-                                                        <div className="inline-flex shadow-sm rounded-md" role="group">
+                                                    <td className="whitespace-nowrap px-5 py-4 text-center">
+                                                        <div className="inline-flex rounded-md shadow-xs" role="group">
                                                             <button
                                                                 type="button"
-                                                                onClick={() => handleStatusChange(entry.learner_id, 'present')}
-                                                                className={`px-3 py-1.5 text-xs font-bold border rounded-l-lg transition-colors ${
-                                                                    entry.status === 'present' 
-                                                                    ? 'bg-emerald-600 text-white border-emerald-600' 
-                                                                    : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                                                                onClick={() =>
+                                                                    handleStatusChange(
+                                                                        entry.learner_id,
+                                                                        'present',
+                                                                    )
+                                                                }
+                                                                className={`rounded-l-md px-3 py-1 text-xs font-semibold border ${
+                                                                    entry.status === 'present'
+                                                                        ? 'bg-emerald-600 border-emerald-600 text-white'
+                                                                        : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'
                                                                 }`}
                                                             >
                                                                 Present
                                                             </button>
                                                             <button
                                                                 type="button"
-                                                                onClick={() => handleStatusChange(entry.learner_id, 'absent')}
-                                                                className={`px-3 py-1.5 text-xs font-bold border-t border-b transition-colors ${
-                                                                    entry.status === 'absent' 
-                                                                    ? 'bg-rose-600 text-white border-rose-600' 
-                                                                    : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                                                                onClick={() =>
+                                                                    handleStatusChange(
+                                                                        entry.learner_id,
+                                                                        'absent',
+                                                                    )
+                                                                }
+                                                                className={`border-t border-b px-3 py-1 text-xs font-semibold ${
+                                                                    entry.status === 'absent'
+                                                                        ? 'bg-rose-600 border-rose-600 text-white'
+                                                                        : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'
                                                                 }`}
                                                             >
                                                                 Absent
                                                             </button>
                                                             <button
                                                                 type="button"
-                                                                onClick={() => handleStatusChange(entry.learner_id, 'late')}
-                                                                className={`px-3 py-1.5 text-xs font-bold border-t border-b border-l transition-colors ${
-                                                                    entry.status === 'late' 
-                                                                    ? 'bg-amber-500 text-white border-amber-500' 
-                                                                    : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                                                                onClick={() =>
+                                                                    handleStatusChange(
+                                                                        entry.learner_id,
+                                                                        'late',
+                                                                    )
+                                                                }
+                                                                className={`border-t border-b border-l px-3 py-1 text-xs font-semibold ${
+                                                                    entry.status === 'late'
+                                                                        ? 'bg-amber-600 border-amber-600 text-white'
+                                                                        : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'
                                                                 }`}
                                                             >
                                                                 Late
                                                             </button>
                                                             <button
                                                                 type="button"
-                                                                onClick={() => handleStatusChange(entry.learner_id, 'excused')}
-                                                                className={`px-3 py-1.5 text-xs font-bold border rounded-r-lg border-l-0 transition-colors ${
-                                                                    entry.status === 'excused' 
-                                                                    ? 'bg-indigo-600 text-white border-indigo-600' 
-                                                                    : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                                                                onClick={() =>
+                                                                    handleStatusChange(
+                                                                        entry.learner_id,
+                                                                        'excused',
+                                                                    )
+                                                                }
+                                                                className={`rounded-r-md border border-l-0 px-3 py-1 text-xs font-semibold ${
+                                                                    entry.status === 'excused'
+                                                                        ? 'bg-indigo-600 border-indigo-600 text-white'
+                                                                        : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'
                                                                 }`}
                                                             >
                                                                 Excused
                                                             </button>
                                                         </div>
                                                     </td>
-                                                    <td className="px-6 py-4">
-                                                        <input 
-                                                            type="text" 
-                                                            placeholder="Optional notes..." 
-                                                            className="block w-full text-sm border-slate-200 focus:border-emerald-500 focus:ring-emerald-500 rounded-lg shadow-sm py-1.5"
+                                                    <td className="px-5 py-4">
+                                                        <input
+                                                            type="text"
+                                                            placeholder="Optional remarks..."
+                                                            className="block w-full rounded-md border-gray-300 text-xs shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
                                                             value={entry.remarks}
                                                             onChange={(e) => {
-                                                                const newAttendances = [...data.attendances];
-                                                                newAttendances[index].remarks = e.target.value;
-                                                                setData('attendances', newAttendances);
+                                                                const newAttendances = [
+                                                                    ...data.attendances,
+                                                                ];
+                                                                newAttendances[index].remarks =
+                                                                    e.target.value;
+                                                                setData(
+                                                                    'attendances',
+                                                                    newAttendances,
+                                                                );
                                                             }}
                                                         />
                                                     </td>
@@ -232,26 +302,46 @@ export default function AttendanceIndex({ activeYear, sections, filters, selecte
                                             ))}
                                         </tbody>
                                     </table>
-                                    
-                                    <div className="px-6 py-4 border-t border-slate-200 bg-slate-50 flex justify-end">
-                                        <PrimaryButton disabled={processing || !isDirty} className="!bg-emerald-600 hover:!bg-emerald-700">
+
+                                    <div className="flex items-center justify-between border-t border-gray-200 bg-gray-50 px-5 py-4">
+                                        <div>
+                                            {recentlySuccessful && (
+                                                <span className="text-xs font-semibold text-emerald-700">
+                                                    Attendance recorded successfully! ✓
+                                                </span>
+                                            )}
+                                        </div>
+                                        <button
+                                            type="submit"
+                                            disabled={processing || !isDirty}
+                                            className="inline-flex h-9 items-center rounded-md bg-gray-900 px-4 text-sm font-semibold text-white hover:bg-gray-700 disabled:opacity-40"
+                                        >
                                             {processing ? 'Saving...' : 'Save Attendance'}
-                                        </PrimaryButton>
+                                        </button>
                                     </div>
                                 </div>
                             )}
                         </form>
                     ) : (
-                        <div className="text-center py-16 bg-white rounded-xl shadow-sm border border-slate-200">
-                            <svg className="mx-auto h-12 w-12 text-slate-300 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="1.5">
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                            </svg>
-                            <h3 className="text-base font-black text-slate-900">Select a section to take attendance</h3>
-                            <p className="mt-1 text-sm text-slate-500">Choose a section from the dropdown above to load the class roster.</p>
+                        <div className="rounded-lg border border-gray-200 bg-white p-12 text-center shadow-sm">
+                            <h3 className="text-base font-semibold text-gray-900">
+                                Select a class section
+                            </h3>
+                            <p className="mt-1 text-sm text-gray-500">
+                                Choose a class section from the dropdown above to load the learner roster and record attendance.
+                            </p>
                         </div>
                     )}
                 </div>
             </div>
         </AuthenticatedLayout>
+    );
+}
+
+function HeaderCell({ children }: { children: React.ReactNode }) {
+    return (
+        <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+            {children}
+        </th>
     );
 }

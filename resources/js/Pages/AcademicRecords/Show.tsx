@@ -1,8 +1,6 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 import { Head, Link, useForm } from '@inertiajs/react';
-import PrimaryButton from '@/Components/PrimaryButton';
-import SecondaryButton from '@/Components/SecondaryButton';
-import { FormEvent, useState } from 'react';
+import { FormEvent } from 'react';
 
 type Grade = {
     id?: number;
@@ -32,41 +30,95 @@ type Learner = {
     enrollments: Enrollment[];
 };
 
-export default function AcademicRecordsShow({ learner }: { learner: Learner }) {
-    // Pick the latest enrollment
+export default function AcademicRecordsShow({
+    learner,
+}: {
+    learner: Learner;
+}) {
     const activeEnrollment = learner.enrollments[0];
-    
-    // Initialize form with existing grades or empty state
-    const { data, setData, post, processing, recentlySuccessful, isDirty } = useForm({
-        grades: activeEnrollment?.grades.length > 0 ? activeEnrollment.grades : [
-            { subject: 'Mathematics', q1: '', q2: '', q3: '', q4: '', final_grade: '', remarks: '' },
-            { subject: 'Science', q1: '', q2: '', q3: '', q4: '', final_grade: '', remarks: '' },
-            { subject: 'English', q1: '', q2: '', q3: '', q4: '', final_grade: '', remarks: '' },
-        ] as Grade[]
-    });
+
+    const { data, setData, post, processing, recentlySuccessful, isDirty } =
+        useForm({
+            grades:
+                activeEnrollment?.grades.length > 0
+                    ? activeEnrollment.grades
+                    : ([
+                          {
+                              subject: 'Mathematics',
+                              q1: '',
+                              q2: '',
+                              q3: '',
+                              q4: '',
+                              final_grade: '',
+                              remarks: '',
+                          },
+                          {
+                              subject: 'Science',
+                              q1: '',
+                              q2: '',
+                              q3: '',
+                              q4: '',
+                              final_grade: '',
+                              remarks: '',
+                          },
+                          {
+                              subject: 'English',
+                              q1: '',
+                              q2: '',
+                              q3: '',
+                              q4: '',
+                              final_grade: '',
+                              remarks: '',
+                          },
+                      ] as Grade[]),
+        });
 
     const addSubject = () => {
-        setData('grades', [...data.grades, { subject: '', q1: '', q2: '', q3: '', q4: '', final_grade: '', remarks: '' }]);
+        setData('grades', [
+            ...data.grades,
+            {
+                subject: '',
+                q1: '',
+                q2: '',
+                q3: '',
+                q4: '',
+                final_grade: '',
+                remarks: '',
+            },
+        ]);
     };
 
-    const updateGrade = (index: number, field: keyof Grade, value: string) => {
+    const updateGrade = (
+        index: number,
+        field: keyof Grade,
+        value: string,
+    ) => {
         const newGrades = [...data.grades];
-        
+
         if (field === 'subject' || field === 'remarks') {
             (newGrades[index][field] as string) = value;
         } else {
-            (newGrades[index][field] as string | number | null) = value === '' ? '' : Number(value);
-            
-            // Auto calculate final grade if all quarters are filled
+            (newGrades[index][field] as string | number | null) =
+                value === '' ? '' : Number(value);
+
             const grade = newGrades[index];
-            if (grade.q1 !== '' && grade.q2 !== '' && grade.q3 !== '' && grade.q4 !== '') {
-                const total = Number(grade.q1) + Number(grade.q2) + Number(grade.q3) + Number(grade.q4);
+            if (
+                grade.q1 !== '' &&
+                grade.q2 !== '' &&
+                grade.q3 !== '' &&
+                grade.q4 !== ''
+            ) {
+                const total =
+                    Number(grade.q1) +
+                    Number(grade.q2) +
+                    Number(grade.q3) +
+                    Number(grade.q4);
                 grade.final_grade = (total / 4).toFixed(2);
             } else {
                 grade.final_grade = '';
             }
         }
-        
+
         setData('grades', newGrades);
     };
 
@@ -78,14 +130,16 @@ export default function AcademicRecordsShow({ learner }: { learner: Learner }) {
     const submit = (e: FormEvent) => {
         e.preventDefault();
         post(route('grades.store', activeEnrollment.id), {
-            preserveScroll: true
+            preserveScroll: true,
         });
     };
 
     if (!activeEnrollment) {
         return (
             <AuthenticatedLayout>
-                <div className="p-8 text-center text-slate-500">This learner has no enrollments.</div>
+                <div className="py-12 text-center text-sm text-gray-500">
+                    This learner has no active enrollments.
+                </div>
             </AuthenticatedLayout>
         );
     }
@@ -93,100 +147,271 @@ export default function AcademicRecordsShow({ learner }: { learner: Learner }) {
     return (
         <AuthenticatedLayout
             header={
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="flex items-center gap-4">
-                        <Link href={route('academic-records.index')} className="p-2 rounded-full hover:bg-slate-200 transition bg-slate-100">
-                            <svg className="w-5 h-5 text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-                            </svg>
-                        </Link>
-                        <div>
-                            <h1 className="text-2xl font-black text-slate-900 tracking-tight">{learner.full_name}'s Report Card</h1>
-                            <p className="mt-1 text-sm font-medium text-slate-500">
-                                {activeEnrollment.level} • {activeEnrollment.section} ({activeEnrollment.academic_year})
-                            </p>
+                <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+                    <div>
+                        <div className="flex items-center gap-2 text-sm font-medium text-gray-500">
+                            <Link
+                                href={route('academic-records.index')}
+                                className="hover:text-indigo-600"
+                            >
+                                Academic Records
+                            </Link>
+                            <span>/</span>
+                            <span>{learner.full_name}</span>
                         </div>
+                        <h2 className="text-xl font-semibold leading-tight text-gray-900">
+                            Report Card &amp; Grades
+                        </h2>
+                    </div>
+                    <div className="text-sm font-medium text-gray-500">
+                        Level:{' '}
+                        <span className="font-semibold text-gray-900">
+                            {activeEnrollment.level}
+                        </span>{' '}
+                        · Section:{' '}
+                        <span className="font-semibold text-gray-900">
+                            {activeEnrollment.section || 'Unassigned'}
+                        </span>
                     </div>
                 </div>
             }
         >
             <Head title={`Report Card - ${learner.full_name}`} />
 
-            <div className="py-8 px-4 sm:px-6 lg:px-8">
-                <div className="mx-auto max-w-6xl">
-                    <form onSubmit={submit} className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                        
-                        <div className="px-6 py-5 border-b border-slate-200 bg-slate-50 flex justify-between items-center">
-                            <div>
-                                <h3 className="text-lg font-black text-slate-900">Academic Subjects</h3>
-                                <p className="text-sm text-slate-500 font-medium">Input grades for each grading period. Final grades calculate automatically.</p>
+            <div className="py-8">
+                <div className="mx-auto max-w-7xl space-y-5 px-4 sm:px-6 lg:px-8">
+                    {/* Learner Info Header Bar */}
+                    <div className="flex flex-col gap-3 rounded-lg border border-gray-200 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+                        <div>
+                            <span className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                                Learner Profile
+                            </span>
+                            <div className="mt-1 flex items-center gap-3 text-sm">
+                                <span className="font-semibold text-gray-900">
+                                    {learner.full_name}
+                                </span>
+                                <span className="text-gray-400">·</span>
+                                <span className="text-gray-600">
+                                    LRN: {learner.lrn}
+                                </span>
+                                <span className="text-gray-400">·</span>
+                                <span className="text-gray-600">
+                                    SY: {activeEnrollment.academic_year || 'Current'}
+                                </span>
                             </div>
-                            <SecondaryButton type="button" onClick={addSubject} className="flex items-center gap-2">
-                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                                </svg>
-                                Add Subject
-                            </SecondaryButton>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <button
+                                type="button"
+                                onClick={addSubject}
+                                className="inline-flex h-9 items-center rounded-md border border-gray-300 px-3 text-xs font-semibold text-gray-700 hover:bg-gray-50"
+                            >
+                                + Add Subject
+                            </button>
+                            <Link
+                                href={route('academic-records.index')}
+                                className="inline-flex h-9 items-center rounded-md border border-gray-300 px-3 text-xs font-semibold text-gray-700 hover:bg-gray-50"
+                            >
+                                Back to List
+                            </Link>
+                        </div>
+                    </div>
+
+                    {/* Report Card Form */}
+                    <form
+                        onSubmit={submit}
+                        className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm"
+                    >
+                        <div className="flex items-center justify-between border-b border-gray-200 bg-gray-50 px-5 py-3">
+                            <h3 className="text-sm font-semibold text-gray-900">
+                                Subject Grades Entry
+                            </h3>
+                            {recentlySuccessful && (
+                                <span className="text-xs font-semibold text-emerald-700">
+                                    Grades saved successfully! ✓
+                                </span>
+                            )}
                         </div>
 
                         <div className="overflow-x-auto">
-                            <table className="min-w-full divide-y divide-slate-200">
-                                <thead className="bg-[#002b80]">
+                            <table className="min-w-full divide-y divide-gray-200">
+                                <thead className="bg-gray-50">
                                     <tr>
-                                        <th scope="col" className="px-6 py-4 text-left text-xs font-bold text-white uppercase tracking-wider w-1/4">Subject</th>
-                                        <th scope="col" className="px-3 py-4 text-center text-xs font-bold text-white uppercase tracking-wider w-24">Q1</th>
-                                        <th scope="col" className="px-3 py-4 text-center text-xs font-bold text-white uppercase tracking-wider w-24">Q2</th>
-                                        <th scope="col" className="px-3 py-4 text-center text-xs font-bold text-white uppercase tracking-wider w-24">Q3</th>
-                                        <th scope="col" className="px-3 py-4 text-center text-xs font-bold text-white uppercase tracking-wider w-24">Q4</th>
-                                        <th scope="col" className="px-3 py-4 text-center text-xs font-bold text-white uppercase tracking-wider bg-[#004d31] w-28 border-l border-r border-[#002b80]/20">Final</th>
-                                        <th scope="col" className="px-6 py-4 text-left text-xs font-bold text-white uppercase tracking-wider">Remarks</th>
-                                        <th scope="col" className="px-3 py-4 text-right"></th>
+                                        <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                                            Subject
+                                        </th>
+                                        <th className="px-2 py-3 text-center text-xs font-semibold uppercase tracking-wide text-gray-500 w-24">
+                                            Q1
+                                        </th>
+                                        <th className="px-2 py-3 text-center text-xs font-semibold uppercase tracking-wide text-gray-500 w-24">
+                                            Q2
+                                        </th>
+                                        <th className="px-2 py-3 text-center text-xs font-semibold uppercase tracking-wide text-gray-500 w-24">
+                                            Q3
+                                        </th>
+                                        <th className="px-2 py-3 text-center text-xs font-semibold uppercase tracking-wide text-gray-500 w-24">
+                                            Q4
+                                        </th>
+                                        <th className="px-2 py-3 text-center text-xs font-semibold uppercase tracking-wide text-gray-900 bg-gray-100 w-24">
+                                            Final
+                                        </th>
+                                        <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                                            Remarks
+                                        </th>
+                                        <th className="px-3 py-3 text-right"></th>
                                     </tr>
                                 </thead>
-                                <tbody className="bg-white divide-y divide-slate-100">
+                                <tbody className="divide-y divide-gray-200 bg-white">
                                     {data.grades.map((grade, index) => (
-                                        <tr key={index} className="hover:bg-slate-50 transition-colors">
-                                            <td className="px-6 py-3 whitespace-nowrap">
-                                                <input 
-                                                    type="text" 
-                                                    className="block w-full border-slate-200 focus:border-emerald-500 focus:ring-emerald-500 sm:text-sm rounded-lg font-bold text-slate-700" 
+                                        <tr
+                                            key={index}
+                                            className="hover:bg-gray-50"
+                                        >
+                                            <td className="px-5 py-3">
+                                                <input
+                                                    type="text"
+                                                    className="block w-full rounded-md border-gray-300 text-sm font-semibold text-gray-900 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
                                                     placeholder="e.g. Mathematics"
                                                     value={grade.subject}
-                                                    onChange={e => updateGrade(index, 'subject', e.target.value)}
+                                                    onChange={(e) =>
+                                                        updateGrade(
+                                                            index,
+                                                            'subject',
+                                                            e.target.value,
+                                                        )
+                                                    }
                                                     required
                                                 />
                                             </td>
                                             <td className="px-2 py-3">
-                                                <input type="number" min="0" max="100" step="0.01" className="block w-full border-slate-200 focus:border-emerald-500 focus:ring-emerald-500 sm:text-sm rounded-lg text-center font-medium" placeholder="-" value={grade.q1 ?? ''} onChange={e => updateGrade(index, 'q1', e.target.value)} />
+                                                <input
+                                                    type="number"
+                                                    min="0"
+                                                    max="100"
+                                                    step="0.01"
+                                                    className="block w-full rounded-md border-gray-300 text-center text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                                    placeholder="-"
+                                                    value={grade.q1 ?? ''}
+                                                    onChange={(e) =>
+                                                        updateGrade(
+                                                            index,
+                                                            'q1',
+                                                            e.target.value,
+                                                        )
+                                                    }
+                                                />
                                             </td>
                                             <td className="px-2 py-3">
-                                                <input type="number" min="0" max="100" step="0.01" className="block w-full border-slate-200 focus:border-emerald-500 focus:ring-emerald-500 sm:text-sm rounded-lg text-center font-medium" placeholder="-" value={grade.q2 ?? ''} onChange={e => updateGrade(index, 'q2', e.target.value)} />
+                                                <input
+                                                    type="number"
+                                                    min="0"
+                                                    max="100"
+                                                    step="0.01"
+                                                    className="block w-full rounded-md border-gray-300 text-center text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                                    placeholder="-"
+                                                    value={grade.q2 ?? ''}
+                                                    onChange={(e) =>
+                                                        updateGrade(
+                                                            index,
+                                                            'q2',
+                                                            e.target.value,
+                                                        )
+                                                    }
+                                                />
                                             </td>
                                             <td className="px-2 py-3">
-                                                <input type="number" min="0" max="100" step="0.01" className="block w-full border-slate-200 focus:border-emerald-500 focus:ring-emerald-500 sm:text-sm rounded-lg text-center font-medium" placeholder="-" value={grade.q3 ?? ''} onChange={e => updateGrade(index, 'q3', e.target.value)} />
+                                                <input
+                                                    type="number"
+                                                    min="0"
+                                                    max="100"
+                                                    step="0.01"
+                                                    className="block w-full rounded-md border-gray-300 text-center text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                                    placeholder="-"
+                                                    value={grade.q3 ?? ''}
+                                                    onChange={(e) =>
+                                                        updateGrade(
+                                                            index,
+                                                            'q3',
+                                                            e.target.value,
+                                                        )
+                                                    }
+                                                />
                                             </td>
                                             <td className="px-2 py-3">
-                                                <input type="number" min="0" max="100" step="0.01" className="block w-full border-slate-200 focus:border-emerald-500 focus:ring-emerald-500 sm:text-sm rounded-lg text-center font-medium" placeholder="-" value={grade.q4 ?? ''} onChange={e => updateGrade(index, 'q4', e.target.value)} />
+                                                <input
+                                                    type="number"
+                                                    min="0"
+                                                    max="100"
+                                                    step="0.01"
+                                                    className="block w-full rounded-md border-gray-300 text-center text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                                    placeholder="-"
+                                                    value={grade.q4 ?? ''}
+                                                    onChange={(e) =>
+                                                        updateGrade(
+                                                            index,
+                                                            'q4',
+                                                            e.target.value,
+                                                        )
+                                                    }
+                                                />
                                             </td>
-                                            <td className="px-2 py-3 bg-indigo-50/30 border-l border-r border-indigo-50">
-                                                <input type="number" min="0" max="100" step="0.01" className="block w-full border-indigo-200 focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm rounded-lg text-center font-black text-indigo-700 bg-white" placeholder="-" value={grade.final_grade ?? ''} onChange={e => updateGrade(index, 'final_grade', e.target.value)} />
+                                            <td className="px-2 py-3 bg-gray-50">
+                                                <input
+                                                    type="number"
+                                                    min="0"
+                                                    max="100"
+                                                    step="0.01"
+                                                    className="block w-full rounded-md border-gray-300 bg-white text-center text-sm font-semibold text-gray-900 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                                    placeholder="-"
+                                                    value={
+                                                        grade.final_grade ?? ''
+                                                    }
+                                                    onChange={(e) =>
+                                                        updateGrade(
+                                                            index,
+                                                            'final_grade',
+                                                            e.target.value,
+                                                        )
+                                                    }
+                                                />
                                             </td>
-                                            <td className="px-6 py-3">
-                                                <input type="text" className="block w-full border-slate-200 focus:border-emerald-500 focus:ring-emerald-500 sm:text-sm rounded-lg text-slate-500" placeholder="Optional notes..." value={grade.remarks ?? ''} onChange={e => updateGrade(index, 'remarks', e.target.value)} />
+                                            <td className="px-5 py-3">
+                                                <input
+                                                    type="text"
+                                                    className="block w-full rounded-md border-gray-300 text-sm shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                                                    placeholder="Optional remarks..."
+                                                    value={grade.remarks ?? ''}
+                                                    onChange={(e) =>
+                                                        updateGrade(
+                                                            index,
+                                                            'remarks',
+                                                            e.target.value,
+                                                        )
+                                                    }
+                                                />
                                             </td>
                                             <td className="px-3 py-3 text-right">
-                                                <button type="button" onClick={() => removeSubject(index)} className="text-slate-400 hover:text-rose-600 transition p-1">
-                                                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                                    </svg>
+                                                <button
+                                                    type="button"
+                                                    onClick={() =>
+                                                        removeSubject(index)
+                                                    }
+                                                    className="text-gray-400 hover:text-rose-600"
+                                                    title="Delete subject"
+                                                >
+                                                    ✕
                                                 </button>
                                             </td>
                                         </tr>
                                     ))}
+
                                     {data.grades.length === 0 && (
                                         <tr>
-                                            <td colSpan={8} className="px-6 py-12 text-center text-slate-500 text-sm font-medium">
-                                                No subjects added. Click "Add Subject" to begin tracking grades.
+                                            <td
+                                                colSpan={8}
+                                                className="px-5 py-10 text-center text-sm text-gray-500"
+                                            >
+                                                No subjects added. Click "+ Add Subject" to begin.
                                             </td>
                                         </tr>
                                     )}
@@ -194,13 +419,21 @@ export default function AcademicRecordsShow({ learner }: { learner: Learner }) {
                             </table>
                         </div>
 
-                        <div className="px-6 py-4 border-t border-slate-200 bg-slate-50 flex justify-between items-center">
-                            <div>
-                                {recentlySuccessful && <span className="text-sm font-bold text-emerald-600">Report card saved perfectly! ✓</span>}
-                            </div>
-                            <PrimaryButton disabled={processing || !isDirty} className="!bg-emerald-600 hover:!bg-emerald-700 shadow-md">
-                                {processing ? 'Saving Report Card...' : 'Save Report Card'}
-                            </PrimaryButton>
+                        <div className="flex items-center justify-between border-t border-gray-200 bg-gray-50 px-5 py-4">
+                            <button
+                                type="button"
+                                onClick={addSubject}
+                                className="inline-flex items-center rounded-md border border-gray-300 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50"
+                            >
+                                + Add Another Subject
+                            </button>
+                            <button
+                                type="submit"
+                                disabled={processing || !isDirty}
+                                className="inline-flex h-9 items-center rounded-md bg-gray-900 px-4 text-sm font-semibold text-white hover:bg-gray-700 disabled:opacity-40"
+                            >
+                                {processing ? 'Saving...' : 'Save Report Card'}
+                            </button>
                         </div>
                     </form>
                 </div>

@@ -69,60 +69,64 @@ export default function EnrollmentsIndex({
             header={
                 <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
                     <div>
-                        <p className="ops-kicker">Registrar module</p>
-                        <h2 className="ops-title text-3xl leading-tight">
-                            Enrollment
+                        <p className="text-sm font-medium text-gray-500">Registrar records</p>
+                        <h2 className="text-xl font-semibold leading-tight text-gray-900">
+                            Enrollment Overview
                         </h2>
                     </div>
-                    <div className="rounded-xl border border-green-100 bg-green-50 px-4 py-2 text-sm font-bold text-green-800">
-                        SY {activeYear?.name ?? 'Not configured'}
+                    <div className="text-sm font-medium text-gray-500">
+                        Active year: <span className="text-gray-900">{activeYear?.name ?? 'Not configured'}</span>
                     </div>
                 </div>
             }
         >
-            <Head title="Enrollment" />
+            <Head title="Enrollment Overview" />
 
             <div className="py-8">
-                <div className="mx-auto w-full max-w-none space-y-6 px-4 sm:px-6 lg:px-8">
-                    <section className="grid gap-4 md:grid-cols-4">
+                <div className="mx-auto max-w-7xl space-y-5 px-4 sm:px-6 lg:px-8">
+                    {/* Metrics */}
+                    <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
                         <Metric label="Total enrollments" value={totals.enrollments} />
                         <Metric label="Active learners" value={totals.active} />
                         <Metric label="Grade levels" value={totals.levels} />
-                        <Metric label="Sections" value={totals.sections} />
+                        <Metric label="Class sections" value={totals.sections} />
                     </section>
 
-                    <section className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
-                        <div className="ops-panel-soft rounded-xl p-5">
-                            <div className="flex items-center justify-between">
+                    <section className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_360px]">
+                        {/* Level Distribution Card */}
+                        <div className="rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
+                            <div className="flex items-center justify-between border-b border-gray-200 pb-4">
                                 <div>
-                                    <p className="ops-kicker">Distribution</p>
-                                    <h3 className="text-xl font-black text-slate-900">
-                                        Enrollment by level
+                                    <h3 className="text-base font-semibold text-gray-900">
+                                        Enrollment by grade level
                                     </h3>
+                                    <p className="mt-1 text-sm text-gray-500">
+                                        Active students enrolled across levels
+                                    </p>
                                 </div>
                                 <Link
                                     href={route('learners.index')}
-                                    className="ops-button-secondary rounded-md px-3 py-2 text-sm font-bold"
+                                    className="rounded-md border border-gray-300 px-3 py-1.5 text-sm font-semibold text-gray-700 hover:bg-gray-50"
                                 >
-                                    Open learners
+                                    Open directory &rarr;
                                 </Link>
                             </div>
-                            <div className="mt-6 space-y-4">
+                            <div className="mt-5 space-y-3.5">
                                 {byLevel.map((row) => (
                                     <div key={row.level ?? 'unassigned'}>
                                         <div className="flex items-center justify-between text-sm">
-                                            <span className="font-black text-slate-800">
+                                            <span className="font-semibold text-gray-900">
                                                 {row.level ?? 'Unassigned'}
                                             </span>
-                                            <span className="font-bold text-slate-500">
+                                            <span className="text-sm text-gray-500">
                                                 {row.total.toLocaleString()} learners
                                             </span>
                                         </div>
-                                        <div className="mt-2 h-3 overflow-hidden rounded-full bg-slate-100">
+                                        <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-gray-100">
                                             <div
-                                                className="h-full rounded-full bg-gradient-to-r from-green-600 to-emerald-400"
+                                                className="h-full rounded-full bg-gray-900"
                                                 style={{
-                                                    width: `${Math.max(8, (row.total / maxLevel) * 100)}%`,
+                                                    width: `${Math.max(6, (row.total / maxLevel) * 100)}%`,
                                                 }}
                                             />
                                         </div>
@@ -131,52 +135,64 @@ export default function EnrollmentsIndex({
                             </div>
                         </div>
 
-                        <div className="ops-panel rounded-xl p-5">
-                            <p className="ops-kicker">Compliance</p>
-                            <h3 className="text-xl font-black text-slate-900">
-                                Document readiness
-                            </h3>
+                        {/* Document Readiness Card */}
+                        <div className="rounded-lg border border-gray-200 bg-white p-5 shadow-sm">
+                            <div className="border-b border-gray-200 pb-4">
+                                <h3 className="text-base font-semibold text-gray-900">
+                                    Document readiness
+                                </h3>
+                                <p className="mt-1 text-sm text-gray-500">
+                                    Required student records status
+                                </p>
+                            </div>
                             <div className="mt-5 grid grid-cols-2 gap-3">
-                                <MiniMetric label="OK" value={documentTotals.ok} />
-                                <MiniMetric label="Missing" value={documentTotals.missing} warn />
-                                <MiniMetric label="Expired" value={documentTotals.expired} warn />
-                                <MiniMetric label="Pending" value={documentTotals.pending_review} />
+                                <MiniMetric label="Verified OK" value={documentTotals.ok} status="ok" />
+                                <MiniMetric label="Missing" value={documentTotals.missing} status="warn" />
+                                <MiniMetric label="Expired" value={documentTotals.expired} status="danger" />
+                                <MiniMetric label="Pending Review" value={documentTotals.pending_review} status="neutral" />
                             </div>
                             <Link
                                 href={route('reports.index')}
-                                className="ops-button-primary mt-5 inline-flex rounded-md px-4 py-2 text-sm font-black"
+                                className="mt-5 inline-flex w-full items-center justify-center rounded-md bg-gray-900 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-700"
                             >
-                                View reports
+                                View Detailed Reports
                             </Link>
                         </div>
                     </section>
 
-                    <section className="grid gap-6 xl:grid-cols-[420px_minmax(0,1fr)]">
-                        <div className="ops-panel-soft overflow-hidden rounded-xl">
-                            <div className="border-b border-slate-200 px-5 py-4">
-                                <p className="ops-kicker">Sections</p>
-                                <h3 className="text-lg font-black text-slate-900">
-                                    Section registry
-                                </h3>
+                    <section className="grid gap-5 xl:grid-cols-[380px_minmax(0,1fr)]">
+                        {/* Section Registry */}
+                        <div className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
+                            <div className="flex items-center justify-between border-b border-gray-200 px-5 py-4">
+                                <div>
+                                    <h3 className="text-base font-semibold text-gray-900">
+                                        Section registry
+                                    </h3>
+                                    <p className="mt-1 text-sm text-gray-500">
+                                        {sections.length} active class sections
+                                    </p>
+                                </div>
+                                <Link
+                                    href={route('classes.index')}
+                                    className="text-sm font-semibold text-indigo-600 hover:text-indigo-900"
+                                >
+                                    Manage &rarr;
+                                </Link>
                             </div>
-                            <div className="max-h-[520px] overflow-auto">
+                            <div className="max-h-[500px] overflow-auto divide-y divide-gray-200">
                                 {sections.map((section) => (
-                                    <div
-                                        key={section.id}
-                                        className="border-b border-slate-100 px-5 py-4 last:border-b-0"
-                                    >
+                                    <div key={section.id} className="p-4 hover:bg-gray-50">
                                         <div className="flex items-start justify-between gap-3">
                                             <div>
-                                                <p className="font-black text-slate-900">
-                                                    {section.level} - {section.name}
+                                                <p className="font-semibold text-gray-900">
+                                                    {section.level} · {section.name}
                                                 </p>
-                                                <p className="mt-1 text-sm text-slate-500">
-                                                    {section.teacher_name ?? 'Teacher not assigned'} ·{' '}
-                                                    {section.session ?? 'Session not set'}
+                                                <p className="mt-1 text-xs text-gray-500">
+                                                    {section.teacher_name ?? 'Teacher not assigned'} · {section.session ?? 'Session not set'}
                                                 </p>
                                             </div>
-                                            <span className="rounded-full bg-green-50 px-3 py-1 text-xs font-black text-green-800">
-                                                {section.learners}
+                                            <span className="inline-flex items-center rounded-md bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
+                                                {section.learners} students
                                             </span>
                                         </div>
                                     </div>
@@ -184,53 +200,67 @@ export default function EnrollmentsIndex({
                             </div>
                         </div>
 
-                        <div className="ops-panel-soft overflow-hidden rounded-xl">
-                            <div className="border-b border-slate-200 px-5 py-4">
-                                <p className="ops-kicker">Latest activity</p>
-                                <h3 className="text-lg font-black text-slate-900">
+                        {/* Recent Enrollments Table */}
+                        <div className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
+                            <div className="border-b border-gray-200 px-5 py-4">
+                                <h3 className="text-base font-semibold text-gray-900">
                                     Recent enrollments
                                 </h3>
+                                <p className="mt-1 text-sm text-gray-500">
+                                    Latest learner admission and registration records
+                                </p>
                             </div>
                             <div className="overflow-x-auto">
-                                <table className="ops-table min-w-full text-left text-sm">
-                                    <thead className="bg-[#002b80]">
+                                <table className="min-w-full divide-y divide-gray-200">
+                                    <thead className="bg-gray-50">
                                         <tr>
-                                            <Th>Learner</Th>
-                                            <Th>Level</Th>
-                                            <Th>Section</Th>
-                                            <Th>Status</Th>
-                                            <Th>Date</Th>
+                                            <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Learner</th>
+                                            <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Level</th>
+                                            <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Section</th>
+                                            <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Status</th>
+                                            <th className="px-5 py-3 text-right text-xs font-semibold uppercase tracking-wide text-gray-500">Enrolled Date</th>
                                         </tr>
                                     </thead>
-                                    <tbody>
+                                    <tbody className="divide-y divide-gray-200 bg-white">
                                         {recentEnrollments.map((enrollment) => (
-                                            <tr key={enrollment.id}>
-                                                <Td>
+                                            <tr key={enrollment.id} className="hover:bg-gray-50">
+                                                <td className="whitespace-nowrap px-5 py-4">
                                                     <Link
                                                         href={route('academic-records.show', enrollment.learner_id)}
-                                                        className="font-black text-green-800 hover:text-green-600"
+                                                        className="font-semibold text-gray-900 hover:text-indigo-700"
                                                     >
                                                         {enrollment.learner_name}
                                                     </Link>
-                                                    <p className="text-xs text-slate-500">
+                                                    <p className="mt-1 text-xs text-gray-500">
                                                         LRN {enrollment.lrn ?? 'None'}
                                                     </p>
-                                                </Td>
-                                                <Td>{enrollment.level ?? 'Unassigned'}</Td>
-                                                <Td>
-                                                    {enrollment.section ?? 'No section'}
-                                                    <p className="text-xs text-slate-500">
+                                                </td>
+                                                <td className="whitespace-nowrap px-5 py-4 text-sm font-semibold text-gray-900">
+                                                    {enrollment.level ?? 'Unassigned'}
+                                                </td>
+                                                <td className="whitespace-nowrap px-5 py-4 text-sm text-gray-700">
+                                                    <span>{enrollment.section ?? 'No section'}</span>
+                                                    <p className="mt-1 text-xs text-gray-500">
                                                         {enrollment.session ?? 'No session'}
                                                     </p>
-                                                </Td>
-                                                <Td>
-                                                    <span className="ops-badge-ok rounded-full px-2 py-1 text-xs font-black">
-                                                        {enrollment.status ?? 'No status'}
+                                                </td>
+                                                <td className="whitespace-nowrap px-5 py-4">
+                                                    <span className="inline-flex items-center rounded-md bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
+                                                        {enrollment.status ?? 'Enrolled'}
                                                     </span>
-                                                </Td>
-                                                <Td>{enrollment.enrolled_on ?? 'Not dated'}</Td>
+                                                </td>
+                                                <td className="whitespace-nowrap px-5 py-4 text-right text-sm text-gray-500">
+                                                    {enrollment.enrolled_on ?? '—'}
+                                                </td>
                                             </tr>
                                         ))}
+                                        {recentEnrollments.length === 0 && (
+                                            <tr>
+                                                <td colSpan={5} className="px-5 py-8 text-center text-sm text-gray-500">
+                                                    No enrollment records recorded yet.
+                                                </td>
+                                            </tr>
+                                        )}
                                     </tbody>
                                 </table>
                             </div>
@@ -244,28 +274,27 @@ export default function EnrollmentsIndex({
 
 function Metric({ label, value }: { label: string; value: number }) {
     return (
-        <div className="ops-panel rounded-xl p-5">
-            <p className="ops-kicker">{label}</p>
-            <p className="mt-2 text-3xl font-black text-slate-950">
+        <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+            <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">{label}</p>
+            <p className="mt-1 text-2xl font-semibold text-gray-900">
                 {value.toLocaleString()}
             </p>
         </div>
     );
 }
 
-function MiniMetric({ label, value, warn = false }: { label: string; value: number; warn?: boolean }) {
+function MiniMetric({ label, value, status = 'neutral' }: { label: string; value: number; status?: 'ok' | 'warn' | 'danger' | 'neutral' }) {
+    const styles = {
+        ok: 'bg-emerald-50 text-emerald-800 border border-emerald-200',
+        warn: 'bg-amber-50 text-amber-800 border border-amber-200',
+        danger: 'bg-rose-50 text-rose-800 border border-rose-200',
+        neutral: 'bg-gray-50 text-gray-800 border border-gray-200',
+    }[status];
+
     return (
-        <div className={warn ? 'ops-badge-warn rounded-xl p-4' : 'ops-badge-ok rounded-xl p-4'}>
-            <p className="text-xs font-black uppercase">{label}</p>
-            <p className="mt-1 text-2xl font-black">{value.toLocaleString()}</p>
+        <div className={`rounded-lg p-3.5 ${styles}`}>
+            <p className="text-xs font-semibold uppercase tracking-wider opacity-80">{label}</p>
+            <p className="mt-1 text-xl font-bold">{value.toLocaleString()}</p>
         </div>
     );
-}
-
-function Th({ children }: { children: React.ReactNode }) {
-    return <th className="px-5 py-3 text-xs font-bold uppercase tracking-wide text-white">{children}</th>;
-}
-
-function Td({ children }: { children: React.ReactNode }) {
-    return <td className="border-t border-slate-100 px-5 py-4 align-top text-slate-700">{children}</td>;
 }
