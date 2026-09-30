@@ -26,6 +26,7 @@ use App\Http\Controllers\TeacherProfileController;
 use App\Http\Controllers\PromotionController;
 use App\Http\Controllers\HouseholdController;
 use App\Http\Controllers\AuditTrailController;
+use App\Http\Controllers\AdminController;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -201,6 +202,7 @@ Route::middleware(['auth', 'role:registrar,admin,finance'])->group(function () {
 });
 
 Route::middleware(['auth', 'role:admin'])->group(function () {
+    Route::get('/admin', [AdminController::class, 'index'])->name('admin.index');
     Route::get('/users', [UserManagementController::class, 'index'])->name('users.index');
     Route::match(['put', 'patch', 'post'], '/users/{user}/role', [UserManagementController::class, 'updateRole'])->name('users.role.update');
     Route::match(['put', 'patch', 'post'], '/roles/{role}/modules/{moduleKey}', [UserManagementController::class, 'updateModulePermission'])->name('roles.modules.toggle');
